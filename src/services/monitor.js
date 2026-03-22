@@ -254,7 +254,7 @@ export class PortfolioMonitor {
 
     try {
       // Create rebalancing plan
-      const plan = this.strategyEngine.createRebalancePlan(
+      const plan = await this.strategyEngine.createRebalancePlan(
         rebalanceOpportunity.currentAllocation,
         rebalanceOpportunity.optimalAllocation
       );

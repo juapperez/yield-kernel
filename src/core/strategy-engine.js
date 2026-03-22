@@ -337,7 +337,7 @@ export class StrategyEngine {
    * @param {Object} toAllocation - Target allocation
    * @returns {Object} Execution plan with steps
    */
-  createRebalancePlan(fromAllocation, toAllocation) {
+  async createRebalancePlan(fromAllocation, toAllocation) {
     const steps = [];
     const fromPositions = fromAllocation.positions || new Map();
     const toPositions = toAllocation.positions || new Map();
