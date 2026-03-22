@@ -1301,7 +1301,7 @@
             setInterval(updateSystemTime, 1000);
             updateSystemTime();
 
-            const API_BASE = 'https://yieldkernel-backend.onrender.com';
+            const API_BASE = new URLSearchParams(window.location.search).get('api') || '';
 
             // Real Network Status Check
             async function updateNetworkStatus() {
@@ -1674,23 +1674,51 @@
                 ecosystemSection.scrollIntoView({ behavior: 'smooth' });
 
                 clearTerminal();
-                addTerminalLine('BOOT', 'Initializing secure handshake...');
-                await new Promise(r => setTimeout(r, 1000));
-                addTerminalLine('INFO', 'Authenticating via Tether WDK secure enclave...', true);
-                await new Promise(r => setTimeout(r, 1500));
-                addTerminalLine('SUCCESS', 'Infrastructure Connected: 0x71C...4f92');
-
-                isConnected = true;
-                connectBtns.forEach(btn => {
-                    if (btn.id !== 'btn-run-demo-steps' && btn.id !== 'btn-execute-allocation') {
-                        btn.innerHTML = '<i class="fas fa-chart-pie" style="margin-right: 8px;"></i> Dashboard';
-                        btn.style.borderColor = '#00ff00';
-                        btn.style.color = '#00ff00';
-                    }
-                });
-
+                addTerminalLine('BOOT', 'Initializing Tether WDK connection...');
                 await new Promise(r => setTimeout(r, 800));
-                showDashboard();
+                
+                try {
+                    // Check if WDK is available
+                    if (typeof window.tetherto === 'undefined') {
+                        addTerminalLine('ACTION', 'Tether WDK not detected. Please install the Tether WDK extension.');
+                        addTerminalLine('INFO', 'Visit: https://tether.to/wdk to install');
+                        return;
+                    }
+
+                    addTerminalLine('INFO', 'Requesting WDK authorization...', true);
+                    
+                    // Request WDK connection - this will show the WDK popup
+                    const accounts = await window.tetherto.request({ 
+                        method: 'eth_requestAccounts' 
+                    });
+                    
+                    if (!accounts || accounts.length === 0) {
+                        addTerminalLine('ACTION', 'WDK authorization denied');
+                        return;
+                    }
+
+                    const account = accounts[0];
+                    const shortAddr = account.substring(0, 6) + '...' + account.substring(account.length - 4);
+                    
+                    addTerminalLine('SUCCESS', `WDK Connected: ${shortAddr}`);
+                    addTerminalLine('INFO', 'Self-custodial wallet authorized via Tether WDK');
+
+                    isConnected = true;
+                    connectBtns.forEach(btn => {
+                        if (btn.id !== 'btn-run-demo-steps' && btn.id !== 'btn-execute-allocation') {
+                            btn.innerHTML = '<i class="fas fa-chart-pie" style="margin-right: 8px;"></i> Dashboard';
+                            btn.style.borderColor = '#00ff00';
+                            btn.style.color = '#00ff00';
+                        }
+                    });
+
+                    await new Promise(r => setTimeout(r, 800));
+                    showDashboard();
+                    
+                } catch (error) {
+                    addTerminalLine('ACTION', `WDK connection failed: ${error.message}`);
+                    addTerminalLine('INFO', 'User may have rejected the connection request');
+                }
             }
 
             async function simulateExtensionConnection() {
