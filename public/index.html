@@ -563,6 +563,12 @@
             border: 1px solid #442200;
         }
 
+        .tag-thought {
+            background: #110022;
+            color: #bb66ff;
+            border: 1px solid #220044;
+        }
+
         /* Feature Grid */
         .features-grid {
             display: grid;
@@ -1445,6 +1451,8 @@
 
                 clearTerminal();
                 addTerminalLine('BOOT', `Sending allocation request for ${amount} ${asset}...`);
+                addTerminalLine('THOUGHT', `Analyzing ${asset} market conditions...`);
+                await new Promise(r => setTimeout(r, 800));
 
                 try {
                     const res = await fetch(`${API_BASE}/api/invest`, {
@@ -1457,8 +1465,16 @@
                     });
                     const data = await res.json();
 
+                    addTerminalLine('THOUGHT', `Fetching yield opportunities for ${asset}...`);
+                    await new Promise(r => setTimeout(r, 600));
+                    
+                    addTerminalLine('THOUGHT', `Assessing risk parameters...`);
+                    await new Promise(r => setTimeout(r, 600));
+
                     // Always display AI response first
                     if (data.ai_response) {
+                        addTerminalLine('THOUGHT', `Executing transaction...`);
+                        await new Promise(r => setTimeout(r, 400));
                         data.ai_response.split('\n').forEach(line => {
                             if (line.trim()) addTerminalLine('INFO', line.trim());
                         });
@@ -1726,6 +1742,7 @@
                 if (type === 'BOOT') tagClass = 'tag-info';
                 if (type === 'PASS') tagClass = 'tag-success';
                 if (type === 'EXEC') tagClass = 'tag-action';
+                if (type === 'THOUGHT') tagClass = 'tag-thought';
 
                 line.innerHTML = `
                     <span class="time">${time}</span>
