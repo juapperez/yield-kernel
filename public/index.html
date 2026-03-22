@@ -932,9 +932,6 @@
             }
         }
     </style>
-    
-    <!-- Ethers.js for blockchain interaction -->
-    <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
 </head>
 
 <body>
@@ -1305,18 +1302,29 @@
 
             const API_BASE = new URLSearchParams(window.location.search).get('api') || '';
 
-            // Blockchain Network Status Check - checks Ethereum mainnet directly
+            // Simple Ethereum network status check using public RPC
             async function updateNetworkStatus() {
                 const statusText = document.getElementById('status-text');
                 const statusDot = document.getElementById('status-dot');
 
                 try {
-                    // Check Ethereum mainnet directly via public RPC
-                    const provider = new ethers.JsonRpcProvider('https://eth.llamarpc.com');
-                    const blockNumber = await provider.getBlockNumber();
-                    const network = await provider.getNetwork();
+                    // Call eth_blockNumber via JSON-RPC
+                    const response = await fetch('https://eth.llamarpc.com', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            jsonrpc: '2.0',
+                            method: 'eth_blockNumber',
+                            params: [],
+                            id: 1
+                        })
+                    });
                     
-                    if (blockNumber && blockNumber > 0) {
+                    const data = await response.json();
+                    
+                    if (data.result) {
+                        // Convert hex block number to decimal
+                        const blockNumber = parseInt(data.result, 16);
                         statusText.innerText = `Ethereum Active / Block ${blockNumber.toLocaleString()}`;
                         statusDot.style.background = '#00ff00';
                         statusDot.style.boxShadow = '0 0 8px #00ff00';
