@@ -1457,6 +1457,7 @@
                     });
                     const data = await res.json();
 
+                    // Always display AI response first
                     if (data.ai_response) {
                         data.ai_response.split('\n').forEach(line => {
                             if (line.trim()) addTerminalLine('INFO', line.trim());
@@ -1464,12 +1465,8 @@
                         await new Promise(r => setTimeout(r, 500));
                     }
 
-                    if (data.error || data.issues) {
-                        addTerminalLine('ACTION', `Transaction Failed: ${data.error || 'Issues found'}`);
-                        if (data.issues) {
-                            data.issues.forEach(issue => addTerminalLine('ACTION', issue.message));
-                        }
-                    } else if (data.hash) {
+                    // Then show transaction result
+                    if (data.hash) {
                         addTerminalLine('PASS', 'Risk validation complete. Transaction authorized.');
                         await new Promise(r => setTimeout(r, 600));
                         addTerminalLine('EXEC', `[DECIDE] Supplying ${amount} ${asset} to Aave V3 on ${data.chain || 'Ethereum Mainnet'}...`);
@@ -1486,6 +1483,11 @@
                         }
                         await new Promise(r => setTimeout(r, 400));
                         refreshPortfolio();
+                    } else if (data.error || data.issues) {
+                        addTerminalLine('ACTION', `Transaction Failed: ${data.error || 'Issues found'}`);
+                        if (data.issues) {
+                            data.issues.forEach(issue => addTerminalLine('ACTION', issue.message));
+                        }
                     } else {
                         addTerminalLine('SUCCESS', `Operation completed.`);
                     }

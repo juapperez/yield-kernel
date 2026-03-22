@@ -522,41 +522,37 @@ app.post('/api/invest', async (req, res) => {
     
     req.log.info('invest.request', { asset, amount });
     
-    // Use AI agent to process the investment request
-    const userMessage = `I want to invest ${amount} ${asset}. Please check the best yields, assess the risk, and if it's safe, execute the supply transaction.`;
+    // Get yields and assess risk first
+    const yields = await agent.defiManager.getAvailableYields();
+    const best = (Array.isArray(yields) ? yields : [])
+      .filter(y => String(y.asset || '').toUpperCase() === asset)
+      .sort((a, b) => Number(b.supplyAPY || 0) - Number(a.supplyAPY || 0))[0];
     
-    const aiResponse = await agent.chat(userMessage);
-    
-    // Check if transaction was executed by looking at conversation history
-    const lastToolCall = agent.conversationHistory
-      .slice()
-      .reverse()
-      .find(msg => msg.role === 'tool' && msg.name === 'supply_asset');
-    
-    if (lastToolCall) {
-      const result = JSON.parse(lastToolCall.content);
-      req.log.info('invest.success', { asset, amount, txHash: result.txHash });
-      res.json({
-        ok: true,
-        ai_response: aiResponse,
-        result,
-        hash: result.txHash,
-        blockExplorer: result.blockExplorer,
-        economics: result.economics,
-        chain: result.chain
-      });
-    } else {
-      req.log.warn('invest.no_execution', { asset, amount, aiResponse });
-      res.json({
+    if (!best) {
+      return res.json({
         ok: false,
-        error: 'AI did not execute the transaction. It may have found risks or the function was not called.',
-        ai_response: aiResponse,
-        debug: {
-          historyLength: agent.conversationHistory.length,
-          hasSupplyResult: !!lastToolCall
-        }
+        error: `No yield opportunities found for ${asset}`,
+        ai_response: `I couldn't find any yield opportunities for ${asset} on available protocols.`
       });
     }
+    
+    // Assess risk
+    const risk = agent.riskManager.assessYieldOpportunity(best);
+    
+    // Execute the supply transaction directly
+    req.log.info('invest.execute', { asset, amount, protocol: best.protocol });
+    const result = await agent.defiManager.supplyToProtocol(best.protocol, asset, amount);
+    
+    req.log.info('invest.success', { asset, amount, txHash: result.txHash });
+    res.json({
+      ok: true,
+      ai_response: `Successfully supplied ${amount} ${asset} to ${best.protocol}. Transaction: ${result.txHash}`,
+      result,
+      hash: result.txHash,
+      blockExplorer: result.blockExplorer,
+      economics: result.economics,
+      chain: result.chain
+    });
   } catch (err) {
     req.log.error('invest.error', { error: { name: err?.name, message: err?.message, stack: err?.stack } });
     res.status(500).json({ 

@@ -165,14 +165,16 @@ SAFETY RULES:
 - Always check gas costs
 - Require explicit user authorization
 
-WHEN USER SAYS "INVEST" OR "SUPPLY":
-1. IMMEDIATELY call supply_asset with the specified asset and amount
-2. Use protocol "aave-v3" as default
-3. Do not ask for confirmation - the user already authorized it
-4. Return the transaction result
+CRITICAL INSTRUCTIONS:
+When user says "invest" or "supply":
+1. FIRST call get_yields to see available opportunities
+2. THEN call assess_risk for the best opportunity
+3. THEN IMMEDIATELY call supply_asset with asset, amount, and protocol
+4. DO NOT describe what you will do - ACTUALLY DO IT
+5. Return the transaction result
 
-Example: User says "invest 1000 USDT"
-You MUST call: supply_asset(asset="USDT", amount="1000", protocol="aave-v3")
+You MUST call supply_asset function. Do not just talk about it.
+Example: If user says "invest 1000 USDT", you MUST call supply_asset(asset="USDT", amount="1000", protocol="aave-v3")
 
 Be direct and action-oriented. Execute functions when requested.`;
   }
