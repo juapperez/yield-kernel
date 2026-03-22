@@ -1,0 +1,1738 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YieldKernel | Institutional Autonomous DeFi Infrastructure</title>
+    <meta name="description"
+        content="YieldKernel: The institutional-grade infrastructure for self-custodial AI agents. Automate, optimize, and secure DeFi yields with autonomous intelligence powered by Tether WDK.">
+    <meta name="keywords"
+        content="DeFi, AI Agent, Yield Optimization, Tether WDK, Self-Custodial, Autonomous Finance, Crypto Automation, Aave V3, YieldKernel">
+    <link rel="canonical" href="https://yieldkernel.io/">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://yieldkernel.io/">
+    <meta property="og:title" content="YieldKernel | Institutional Autonomous DeFi Infrastructure">
+    <meta property="og:description"
+        content="Maximize your DeFi potential with YieldKernel. Institutional-grade autonomous agents for self-custodial yield optimization.">
+    <meta property="og:image" content="https://yieldkernel.io/og-image.png">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://yieldkernel.io/">
+    <meta property="twitter:title" content="YieldKernel | Institutional Autonomous DeFi Infrastructure">
+    <meta property="twitter:description"
+        content="Maximize your DeFi potential with YieldKernel. Institutional-grade autonomous agents for self-custodial yield optimization.">
+    <meta property="twitter:image" content="https://yieldkernel.io/og-image.png">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="logo.svg">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600&family=Space+Grotesk:wght@300;400;500;600;700&family=Syne:wght@800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-color: #000000;
+            --card-bg: #000000;
+            --accent-primary: #ffffff;
+            --accent-secondary: #666666;
+            --text-main: #ffffff;
+            --text-dim: #888888;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --glow-color: rgba(255, 255, 255, 0.05);
+            --transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.4;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            cursor: none;
+        }
+
+        /* Institutional Grid Background */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.1;
+            pointer-events: none;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 100px 100px;
+            background-position: center center;
+        }
+
+        /* Custom Cursor */
+        .cursor-follower {
+            position: fixed;
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transition: transform 0.1s ease-out;
+            mix-blend-mode: difference;
+        }
+
+        .cursor-ring {
+            position: fixed;
+            width: 40px;
+            height: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9998;
+            transition: transform 0.15s ease-out;
+        }
+
+        /* System Status Badge */
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 0 0 32px;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.6rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-dim);
+            height: 24px;
+        }
+
+        .status-pulse {
+            width: 6px;
+            height: 6px;
+            background: #00ff00;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #00ff00;
+            animation: pulse-status 2s infinite;
+        }
+
+        @keyframes pulse-status {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.4;
+                transform: scale(1.2);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Shimmer Button Effect */
+        .btn-launch {
+            font-family: 'Space Grotesk', sans-serif;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-launch::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transform: rotate(45deg);
+            transition: 0.5s;
+            pointer-events: none;
+        }
+
+        .btn-launch:hover::after {
+            left: 100%;
+            top: 100%;
+        }
+
+        /* Entrance Animations */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Terminal Blinking Cursor */
+        .terminal-cursor {
+            display: inline-block;
+            width: 8px;
+            height: 15px;
+            background: #fff;
+            margin-left: 4px;
+            vertical-align: middle;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0;
+            }
+        }
+
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 0 60px;
+        }
+
+        /* XION-style Background: Grain + Glow */
+        .bg-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background:
+                radial-gradient(circle at 50% -10%, rgba(255, 255, 255, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 0% 100%, rgba(255, 255, 255, 0.03) 0%, transparent 30%);
+        }
+
+        /* Noise Texture */
+        .bg-noise {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.04;
+            pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* Navbar */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 48px 0;
+        }
+
+        .logo {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-main);
+            transition: var(--transition);
+        }
+
+        .logo:hover {
+            opacity: 0.7;
+        }
+
+        .logo span {
+            font-weight: 300;
+            opacity: 0.4;
+            letter-spacing: 0.15em;
+            margin-left: 2px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 48px;
+        }
+
+        .nav-links a {
+            font-family: 'Space Grotesk', sans-serif;
+            color: var(--text-dim);
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            transition: var(--transition);
+        }
+
+        .nav-links a:hover {
+            color: var(--text-main);
+        }
+
+        .btn-launch {
+            background: var(--text-main);
+            color: var(--bg-color);
+            padding: 14px 32px;
+            border-radius: 2px;
+            font-weight: 800;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            text-decoration: none;
+            transition: var(--transition);
+            border: 1px solid var(--text-main);
+        }
+
+        .btn-launch:hover {
+            background: transparent;
+            color: var(--text-main);
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 160px 0 100px;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero-bg-text {
+            position: absolute;
+            top: 25%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: clamp(5rem, 15vw, 12rem);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: rgba(255, 255, 255, 0.03);
+            white-space: nowrap;
+            z-index: -1;
+            pointer-events: none;
+            user-select: none;
+            filter: blur(10px);
+        }
+
+        .hero-label {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            color: var(--text-dim);
+            margin-bottom: 40px;
+            display: block;
+        }
+
+        .hero h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: 2rem;
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: -0.04em;
+            margin-bottom: 48px;
+            text-transform: uppercase;
+            width: 100%;
+            margin-left: auto;
+            margin-right: auto;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                white-space: normal;
+                line-height: 0.9;
+            }
+        }
+
+        .hero p {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.35rem;
+            font-weight: 300;
+            color: var(--text-dim);
+            max-width: 720px;
+            margin: 0 auto 72px;
+            line-height: 1.5;
+            letter-spacing: -0.01em;
+        }
+
+        /* Trusted By Logos */
+        .trusted-by {
+            padding: 80px 0;
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .trusted-label {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.65rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.25em;
+            color: var(--text-dim);
+            margin-bottom: 48px;
+            display: block;
+        }
+
+        .brand-grid {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 100px;
+            flex-wrap: wrap;
+        }
+
+        .brand-item {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: 0.1em;
+            opacity: 0.3;
+            transition: var(--transition);
+        }
+
+        .brand-item:hover {
+            opacity: 1;
+        }
+
+        /* Feature Focus Section */
+        .feature-focus {
+            padding: 160px 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 120px;
+            align-items: flex-start;
+        }
+
+        .feature-content {
+            position: sticky;
+            top: 100px;
+        }
+
+        .feature-content h2 {
+            font-family: 'Syne', sans-serif;
+            font-size: 4.5rem;
+            font-weight: 800;
+            line-height: 0.9;
+            letter-spacing: -0.05em;
+            margin-bottom: 40px;
+            text-transform: uppercase;
+        }
+
+        .how-it-works-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+        }
+
+        .step-item {
+            display: flex;
+            gap: 24px;
+            opacity: 0.3;
+            transition: var(--transition);
+        }
+
+        .step-item.active {
+            opacity: 1;
+            transform: translateX(10px);
+        }
+
+        .step-num {
+            font-size: 0.8rem;
+            font-weight: 900;
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono';
+            padding-top: 4px;
+        }
+
+        .step-text h4 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: -0.02em;
+        }
+
+        .step-text p {
+            font-size: 1rem;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        /* Terminal Preview */
+        .terminal-container {
+            background: #000;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 60px 120px rgba(0, 0, 0, 0.6);
+        }
+
+        .terminal-header {
+            background: #080808;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .terminal-dots {
+            display: flex;
+            gap: 10px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #222;
+        }
+
+        .terminal-body {
+            padding: 40px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            height: 500px;
+            overflow-y: auto;
+            color: #d1d5db;
+        }
+
+        .terminal-line {
+            margin-bottom: 16px;
+            display: flex;
+            gap: 20px;
+        }
+
+        .time {
+            color: #444;
+            font-weight: 700;
+        }
+
+        .tag {
+            font-weight: 800;
+            text-transform: uppercase;
+            font-size: 0.65rem;
+            padding: 3px 8px;
+            border-radius: 1px;
+            letter-spacing: 0.05em;
+        }
+
+        .tag-info {
+            background: #111;
+            color: #666;
+            border: 1px solid #222;
+        }
+
+        .tag-success {
+            background: #002200;
+            color: #00ff00;
+            border: 1px solid #004400;
+        }
+
+        .tag-action {
+            background: #221100;
+            color: #ffaa00;
+            border: 1px solid #442200;
+        }
+
+        /* Feature Grid */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1px;
+            background: var(--border-color);
+            margin: 160px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .feature-item {
+            background: var(--bg-color);
+            padding: 80px;
+            transition: var(--transition);
+        }
+
+        .feature-item:hover {
+            background: #050505;
+        }
+
+        .feature-item h3 {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: -0.03em;
+            margin-bottom: 32px;
+        }
+
+        .feature-item p {
+            color: var(--text-dim);
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        /* CTA Footer */
+        .cta-footer {
+            padding: 160px 0;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .cta-footer h2 {
+            font-family: 'Syne', sans-serif;
+            font-size: 2rem;
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: -0.04em;
+            margin-bottom: 48px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        /* Final Footer */
+        footer {
+            padding: 100px 0 60px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .footer-top {
+            display: grid;
+            grid-template-columns: 2fr repeat(3, 1fr);
+            gap: 100px;
+            margin-bottom: 120px;
+        }
+
+        .footer-logo {
+            font-size: 1.4rem;
+            font-weight: 900;
+            letter-spacing: -0.06em;
+        }
+
+        .footer-col h4 {
+            font-size: 0.65rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--text-dim);
+            margin-bottom: 40px;
+        }
+
+        .footer-col ul {
+            list-style: none;
+        }
+
+        .footer-col li {
+            margin-bottom: 20px;
+        }
+
+        .footer-col a {
+            color: var(--text-main);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 700;
+            transition: var(--transition);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .footer-col a:hover {
+            color: var(--text-dim);
+        }
+
+        .footer-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 60px;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.7rem;
+            color: #444;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            font-weight: 800;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s var(--transition);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-content {
+            background: #080808;
+            border: 1px solid var(--border-color);
+            width: 100%;
+            max-width: 480px;
+            padding: 48px;
+            border-radius: 4px;
+            text-align: center;
+            transform: translateY(20px);
+            transition: transform 0.4s var(--transition);
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .wallet-options {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 40px;
+        }
+
+        .wallet-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            text-decoration: none;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 0.75rem;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .wallet-btn:hover {
+            background: white;
+            color: black;
+        }
+
+        .wallet-btn i {
+            font-size: 1.2rem;
+        }
+
+        /* Dashboard Section */
+        #dashboard-section {
+            display: none;
+            padding: 80px 0;
+            opacity: 0;
+            transition: opacity 0.5s var(--transition);
+        }
+
+        #dashboard-section.active {
+            display: block;
+            opacity: 1;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 40px;
+        }
+
+        .dashboard-card {
+            background: #080808;
+            border: 1px solid var(--border-color);
+            padding: 40px;
+            border-radius: 4px;
+        }
+
+        .dashboard-card h3 {
+            font-family: 'Syne', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--text-dim);
+            margin-bottom: 32px;
+        }
+
+        .yield-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .yield-table th {
+            text-align: left;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #444;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .yield-table td {
+            padding: 24px 0;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 700;
+        }
+
+        .yield-value {
+            color: #00ff00;
+            font-family: 'JetBrains Mono';
+        }
+
+        .invest-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .invest-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .invest-input-group label {
+            font-size: 0.65rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+
+        .invest-input {
+            background: #111;
+            border: 1px solid var(--border-color);
+            color: white;
+            padding: 16px;
+            font-family: 'JetBrains Mono';
+            font-size: 1rem;
+            border-radius: 2px;
+        }
+
+        .monitoring-status {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 12px;
+        }
+
+        .pulse-dot {
+            width: 10px;
+            height: 10px;
+            background: #00ff00;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+            animation: pulse-glow 2s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.5);
+                opacity: 0.5;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .hero h1 {
+                font-size: 5rem;
+            }
+
+            .feature-focus {
+                grid-template-columns: 1fr;
+                gap: 80px;
+            }
+
+            .feature-content {
+                position: static;
+            }
+
+            .footer-top {
+                grid-template-columns: 1fr 1fr;
+                gap: 80px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 30px;
+            }
+
+            nav {
+                flex-direction: column;
+                gap: 40px;
+                padding: 40px 0;
+            }
+
+            .brand-grid {
+                gap: 60px;
+            }
+
+            .feature-content h2 {
+                font-size: 3rem;
+            }
+
+            .cta-footer h2 {
+                white-space: normal;
+                line-height: 0.9;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-top {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="cursor-follower" id="cursor-follower"></div>
+    <div class="cursor-ring" id="cursor-ring"></div>
+    <div class="bg-grid"></div>
+    <div class="bg-overlay"></div>
+    <div class="bg-noise"></div>
+
+    <div class="container">
+        <nav>
+            <div style="display: flex; align-items: center; gap: 32px;">
+                <a href="/" class="logo">
+                    <img src="logo.svg" alt="YieldKernel Logo"
+                        style="width: 20px; height: 20px; filter: brightness(1.2);">
+                    <div>YIELD<span>KERNEL</span></div>
+                </a>
+                <div class="system-status" id="status-badge">
+                    <div class="status-pulse" id="status-dot"></div>
+                    <span id="status-text">Network Active</span>
+                    <span style="opacity: 0.2; margin-left: 4px;">/</span>
+                    <span id="system-time"
+                        style="margin-left: 4px; font-family: 'JetBrains Mono'; font-weight: 400; font-size: 0.6rem;">14:22:01</span>
+                </div>
+            </div>
+            <div class="nav-links" id="nav-links">
+                <a href="#ecosystem" id="link-ecosystem">Ecosystem</a>
+                <a href="#developers">Developers</a>
+                <a href="docs.html">Docs</a>
+                <a href="javascript:void(0)" id="btn-disconnect" style="display: none; color: #ff4444;">Disconnect</a>
+            </div>
+            <a href="#" class="btn-launch">Connect Infrastructure</a>
+        </nav>
+
+        <div id="landing-content">
+            <section class="hero reveal">
+                <div class="hero-bg-text">OPTIMIZE EVERYTHING</div>
+                <div
+                    style="font-size: 0.75rem; font-weight: 900; letter-spacing: 0.6em; color: var(--text-dim); margin-bottom: 32px; text-transform: uppercase;">
+                    Autonomous Yield Intelligence</div>
+                <span class="hero-label">High-Performance Autonomous Layer</span>
+                <h1>YIELD EVERYWHERE</h1>
+                <p>The first institutional-grade infrastructure for self-custodial AI agents. Automate across DeFi with
+                    absolute intelligence and precision.</p>
+                <div style="display: flex; justify-content: center; gap: 24px;">
+                    <a href="javascript:void(0)" class="btn-launch" id="btn-start-building"
+                        style="padding: 24px 60px; font-size: 0.9rem;">Start
+                        Building</a>
+                </div>
+            </section>
+
+            <section class="trusted-by reveal">
+                <span class="trusted-label">Securing the next generation of finance</span>
+                <div class="brand-grid">
+                    <div class="brand-item">TETHER</div>
+                    <div class="brand-item">AAVE</div>
+                    <div class="brand-item">ETHEREUM</div>
+                    <div class="brand-item">UNISWAP</div>
+                    <div class="brand-item">GROQ</div>
+                    <div class="brand-item">FIREBASE</div>
+                </div>
+            </section>
+
+            <section class="feature-focus reveal" id="ecosystem">
+                <div class="feature-content">
+                    <h2>How It Works</h2>
+                    <div class="how-it-works-steps">
+                        <div class="step-item" id="step-1">
+                            <span class="step-num">01</span>
+                            <div class="step-text">
+                                <h4>Initialize Secure Enclave</h4>
+                                <p>YieldKernel boots into a secure, isolated environment powered by Tether WDK to ensure
+                                    100% self-custody of your assets.</p>
+                            </div>
+                        </div>
+                        <div class="step-item" id="step-2">
+                            <span class="step-num">02</span>
+                            <div class="step-text">
+                                <h4>Scan & Analyze Yields</h4>
+                                <p>Our AI layer continuously scans top DeFi protocols (Aave, Uniswap) to discover and
+                                    evaluate risk-adjusted opportunities.</p>
+                            </div>
+                        </div>
+                        <div class="step-item" id="step-3">
+                            <span class="step-num">03</span>
+                            <div class="step-text">
+                                <h4>Autonomous Execution</h4>
+                                <p>Every decision is backed by intelligence. Transactions are prepared and executed
+                                    only after passing rigorous risk checks.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="terminal-container">
+                    <div class="terminal-header">
+                        <div class="terminal-dots">
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                        </div>
+                        <span
+                            style="font-size: 0.6rem; color: #444; font-family: 'JetBrains Mono'; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">runtime_kernel_v2.0.8_stable</span>
+                    </div>
+                    <div class="terminal-body" id="terminal-body">
+                        <div class="terminal-line">
+                            <span class="time">14:02:11</span>
+                            <span class="tag tag-info">Sys</span>
+                            <span>Initializing secure enclave isolation...</span>
+                        </div>
+                        <div class="terminal-line">
+                            <span class="time">14:02:12</span>
+                            <span class="time">></span>
+                            <span>Connecting to Tether WDK P2P Network...</span>
+                        </div>
+                        <div class="terminal-line">
+                            <span class="time">14:02:15</span>
+                            <span class="tag tag-success">Sync</span>
+                            <span>Chain state verified. Latency: 4ms</span>
+                        </div>
+                        <div class="terminal-line">
+                            <span class="time">14:02:16</span>
+                            <span class="time">></span>
+                            <span>Scanning Aave V3 Liquidity Pools...</span>
+                        </div>
+                        <div class="terminal-line">
+                            <span class="time">14:02:18</span>
+                            <span class="tag tag-info">Scan</span>
+                            <span>Found 9.42% APY in Pool_USDT_Mainnet</span>
+                        </div>
+                        <div class="terminal-line">
+                            <span class="time">14:02:20</span>
+                            <span class="time">></span>
+                            <span>Running AI Risk Assessment Module...</span>
+                        </div>
+                        <div class="terminal-line">
+                            <span class="time">14:02:25</span>
+                            <span class="tag tag-success">Pass</span>
+                            <span>Risk Score: 0.12 (Institutional Grade)</span>
+                        </div>
+                        <div class="terminal-line">
+                            <span class="time">14:02:30</span>
+                            <span class="tag tag-action">Exec</span>
+                            <span>Supplying 5,000 USDT to Aave V3. Confirmed.<span
+                                    class="terminal-cursor"></span></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="features-grid reveal" id="developers">
+                <div class="feature-item">
+                    <h3>Autonomous Alpha</h3>
+                    <p>Every decision is backed by AI intelligence, ensuring your agents operate exactly as intended
+                        with zero manual intervention.</p>
+                </div>
+                <div class="feature-item">
+                    <h3>Extreme Scale</h3>
+                    <p>Engineered for high-throughput environments, our infrastructure supports thousands of concurrent
+                        agents across multiple chains.</p>
+                </div>
+                <div class="feature-item">
+                    <h3>Modular SDK</h3>
+                    <p>A builder-first approach with a modular SDK that lets you plug in custom risk models, protocols,
+                        and
+                        AI providers seamlessly.</p>
+                </div>
+                <div class="feature-item">
+                    <h3>Institutional Security</h3>
+                    <p>Non-custodial by design. Your keys, your assets, our intelligence layer. Built on top of Tether's
+                        proven WDK security model.</p>
+                </div>
+            </section>
+
+            <section class="cta-footer reveal" style="position: relative; overflow: hidden;">
+                <div class="hero-bg-text" style="top: 50%; opacity: 0.02;">AUTOMATE</div>
+                <h2>Ready to Automate?</h2>
+                <a href="javascript:void(0)" class="btn-launch"
+                    style="padding: 28px 80px; font-size: 1.1rem; border-radius: 4px;">Join the
+                    Ecosystem</a>
+            </section>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div id="dashboard-section">
+            <section class="hero reveal" style="padding: 80px 0 40px; text-align: left;">
+                <span class="hero-label">Infrastructure Active</span>
+                <h1 style="font-size: 4rem;">Control Panel</h1>
+            </section>
+
+            <div class="dashboard-grid reveal">
+                <div class="dashboard-card">
+                    <h3>Market Yields (Aave V3)</h3>
+                    <table class="yield-table">
+                        <thead>
+                            <tr>
+                                <th>Asset</th>
+                                <th>Protocol</th>
+                                <th>Current APY</th>
+                                <th>Risk Score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>USDT</td>
+                                <td>AAVE V3</td>
+                                <td class="yield-value">9.42%</td>
+                                <td>0.12</td>
+                            </tr>
+                            <tr>
+                                <td>USDC</td>
+                                <td>AAVE V3</td>
+                                <td class="yield-value">8.15%</td>
+                                <td>0.10</td>
+                            </tr>
+                            <tr>
+                                <td>WETH</td>
+                                <td>AAVE V3</td>
+                                <td class="yield-value">3.21%</td>
+                                <td>0.08</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="dashboard-card">
+                    <h3>Investment Console</h3>
+                    <div class="invest-panel">
+                        <div class="invest-input-group">
+                            <label>Asset to Supply</label>
+                            <select class="invest-input" id="invest-asset"
+                                style="appearance: none; background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-2.6H18.4c-5%200-10.3%202.2-13.6%206.1-3.3%203.9-4.3%209-2.6%2013.8L131%20271c3.1%204.7%208.3%207.6%2013.8%207.6s10.7-2.9%2013.8-7.6L287%2086.7c1.7-4.8%200.7-9.9-2.6-13.8z%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 1.2rem top 50%; background-size: .65rem auto;">
+                                <option>USDT</option>
+                                <option>USDC</option>
+                                <option>WETH</option>
+                            </select>
+                        </div>
+                        <div class="invest-input-group">
+                            <label>Amount</label>
+                            <input type="number" class="invest-input" id="invest-amount" placeholder="0.00">
+                        </div>
+                        <button class="btn-launch" id="btn-execute-allocation"
+                            style="width: 100%; border-radius: 4px;">Execute Allocation</button>
+                    </div>
+
+                    <h3 style="margin-top: 48px; margin-bottom: 16px;">Monitoring Frequency</h3>
+                    <div class="monitoring-status">
+                        <div class="pulse-dot"></div>
+                        <span style="font-family: 'JetBrains Mono'; font-size: 0.85rem; font-weight: 700;"
+                            id="recheck-cycle-text">86400s RECHECK
+                            CYCLE</span>
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 12px; line-height: 1.4;">The agent
+                        autonomously re-evaluates yields every 24 hours to ensure institutional-grade stability and
+                        minimize unnecessary gas exposure.</p>
+
+                    <h3 style="margin-top: 48px; margin-bottom: 16px;">Judge Mode</h3>
+                    <div style="display:flex; gap:12px; align-items:center;">
+                        <button class="btn-launch" id="btn-judge-run" style="border-radius: 4px; padding: 14px 18px;">
+                            Run Judge Mode
+                        </button>
+                        <button class="btn-launch" id="btn-proof-tx"
+                            style="border-radius: 4px; padding: 14px 18px; background: transparent; color: var(--text-main); border-color: rgba(255,255,255,0.2);">
+                            Generate On-chain Proof
+                        </button>
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 12px; line-height: 1.4;">One click
+                        generates a structured decision transcript. Proof uses a real testnet transaction when WDK is
+                        active and funded.</p>
+
+                    <h3 style="margin-top: 48px; margin-bottom: 16px;">Live Agent Feed</h3>
+                    <div
+                        style="background: #050505; border: 1px solid rgba(0,255,102,0.2); border-radius: 8px; padding: 20px; max-height: 280px; overflow-y: auto;">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
+                            <div class="pulse-dot"></div>
+                            <span
+                                style="font-family:'JetBrains Mono'; font-size:0.7rem; color:var(--accent);">AUTONOMOUS
+                                MONITOR — LIVE</span>
+                        </div>
+                        <div id="monitor-feed">
+                            <div style="font-family:'JetBrains Mono';font-size:0.72rem;color:#444;">Connecting to agent
+                                decision loop...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <footer class="reveal">
+            <div class="footer-top">
+                <div class="footer-col" style="grid-column: span 1;">
+                    <div class="logo footer-logo">
+                        <img src="logo.svg" alt="YieldKernel Logo" style="width: 28px; height: 28px;">
+                        <span>YieldKernel</span>
+                    </div>
+                </div>
+                <div class="footer-col">
+                    <h4>Platform</h4>
+                    <ul>
+                        <li><a href="#">Ecosystem</a></li>
+                        <li><a href="#">Security</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Developers</h4>
+                    <ul>
+                        <li><a href="docs.html">Docs</a></li>
+                        <li><a href="https://github.com/juapperez/yield-kernel" target="_blank">GitHub</a></li>
+                        <li><a href="#">Status</a></li>
+                    </ul>
+                </div>
+
+            </div>
+            <div class="footer-bottom">
+                <span>&copy; 2026 YieldKernel</span>
+                <span>INSTITUTIONAL DEFI INFRASTRUCTURE</span>
+                <span>OPTIMIZE EVERYTHING</span>
+            </div>
+        </footer>
+        <div class="modal-overlay" id="wallet-modal">
+            <div class="modal-content">
+                <h3 style="text-transform: uppercase; letter-spacing: 0.1em; font-weight: 900;">Connect Infrastructure
+                </h3>
+                <p style="color: var(--text-dim); margin-top: 16px; font-size: 0.9rem;">Select your preferred
+                    self-custodial provider to authorize YieldKernel.</p>
+
+                <div class="wallet-options">
+                    <button class="wallet-btn" id="connect-wdk">
+                        <span>Tether WDK (Recommended)</span>
+                        <i class="fas fa-shield-halved"></i>
+                    </button>
+                    <button class="wallet-btn" id="connect-extension">
+                        <span>Browser Extension</span>
+                        <i class="fas fa-wallet"></i>
+                    </button>
+                </div>
+
+                <button
+                    style="margin-top: 32px; background: transparent; border: none; color: var(--text-dim); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; cursor: pointer; font-weight: 800;"
+                    id="close-modal">Cancel</button>
+            </div>
+        </div>
+
+        <script>
+            // Custom Cursor Logic
+            const follower = document.getElementById('cursor-follower');
+            const ring = document.getElementById('cursor-ring');
+
+            document.addEventListener('mousemove', (e) => {
+                follower.style.transform = `translate(${e.clientX - 4}px, ${e.clientY - 4}px)`;
+                ring.style.transform = `translate(${e.clientX - 20}px, ${e.clientY - 20}px)`;
+            });
+
+            // Live System Time
+            function updateSystemTime() {
+                const now = new Date();
+                document.getElementById('system-time').innerText = now.toLocaleTimeString('en-GB', { hour12: false });
+            }
+            setInterval(updateSystemTime, 1000);
+            updateSystemTime();
+
+            const API_BASE = 'https://yieldkernel-backend.onrender.com';
+
+            // Real Network Status Check
+            async function updateNetworkStatus() {
+                const statusText = document.getElementById('status-text');
+                const statusDot = document.getElementById('status-dot');
+                const recheckCycleText = document.getElementById('recheck-cycle-text');
+
+                try {
+                    const response = await fetch(`${API_BASE}/api/status`, {
+                        headers: {
+                            'Bypass-Tunnel-Reminder': 'true'
+                        }
+                    });
+                    const data = await response.json();
+
+                    if (data.recheck_cycle && recheckCycleText) {
+                        recheckCycleText.innerText = `${data.recheck_cycle} RECHECK CYCLE`;
+                    }
+
+                    const wdkMode = data.wdk && data.wdk.walletMode ? String(data.wdk.walletMode).toUpperCase() : '';
+
+                    if (data.status === 'operational') {
+                        statusText.innerText = wdkMode ? `Network Active / ${wdkMode}` : 'Network Active';
+                        statusDot.style.background = '#00ff00';
+                        statusDot.style.boxShadow = '0 0 8px #00ff00';
+                    } else if (data.status === 'degraded') {
+                        statusText.innerText = wdkMode ? `Network Degraded / ${wdkMode}` : 'Network Degraded';
+                        statusDot.style.background = '#ffaa00';
+                        statusDot.style.boxShadow = '0 0 8px #ffaa00';
+                    } else {
+                        statusText.innerText = wdkMode ? `Network Offline / ${wdkMode}` : 'Network Offline';
+                        statusDot.style.background = '#ff4444';
+                        statusDot.style.boxShadow = '0 0 8px #ff4444';
+                    }
+                } catch (err) {
+                    statusText.innerText = 'Network Offline';
+                    statusDot.style.background = '#ff4444';
+                    statusDot.style.boxShadow = '0 0 8px #ff4444';
+                }
+            }
+            setInterval(updateNetworkStatus, 10000);
+            updateNetworkStatus();
+
+            // Reveal on Scroll
+            const observerOptions = {
+                threshold: 0.3
+            };
+
+            let executionStarted = false;
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('active');
+
+                        // Auto-trigger terminal execution when Ecosystem section is in view
+                        if (entry.target.id === 'ecosystem' && !executionStarted) {
+                            executionStarted = true;
+                            runHowItWorks();
+                        }
+                    }
+                });
+            }, observerOptions);
+
+            document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+            const terminalBody = document.getElementById('terminal-body');
+            const walletModal = document.getElementById('wallet-modal');
+            const closeModal = document.getElementById('close-modal');
+            const connectWDK = document.getElementById('connect-wdk');
+            const connectExtension = document.getElementById('connect-extension');
+            const connectBtns = document.querySelectorAll('.btn-launch');
+            const landingContent = document.getElementById('landing-content');
+            const dashboardSection = document.getElementById('dashboard-section');
+            const btnExecuteAllocation = document.getElementById('btn-execute-allocation');
+            const investAsset = document.getElementById('invest-asset');
+            const investAmount = document.getElementById('invest-amount');
+            const btnDisconnect = document.getElementById('btn-disconnect');
+            const linkEcosystem = document.getElementById('link-ecosystem');
+            const btnStartBuilding = document.getElementById('btn-start-building');
+            const ecosystemSection = document.getElementById('ecosystem');
+
+            const steps = [
+                document.getElementById('step-1'),
+                document.getElementById('step-2'),
+                document.getElementById('step-3')
+            ];
+
+            let isConnected = false;
+
+            btnStartBuilding.addEventListener('click', () => {
+                document.getElementById('ecosystem').scrollIntoView({ behavior: 'smooth' });
+            });
+
+            function showDashboard() {
+                landingContent.style.display = 'none';
+                dashboardSection.classList.add('active');
+                btnDisconnect.style.display = 'inline-block';
+                linkEcosystem.style.display = 'none';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            function showLanding() {
+                dashboardSection.classList.remove('active');
+                landingContent.style.display = 'block';
+                btnDisconnect.style.display = 'none';
+                linkEcosystem.style.display = 'inline-block';
+                isConnected = false;
+                connectBtns.forEach(btn => {
+                    if (btn.id !== 'btn-run-demo-steps' && btn.id !== 'btn-execute-allocation') {
+                        btn.innerHTML = 'Connect Infrastructure';
+                        btn.style.borderColor = '';
+                        btn.style.color = '';
+                    }
+                });
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            btnDisconnect.addEventListener('click', showLanding);
+
+            async function executeAllocation() {
+                const asset = investAsset.value;
+                const amount = investAmount.value;
+
+                if (!amount || amount <= 0) {
+                    alert('Please enter a valid amount.');
+                    return;
+                }
+
+                // Temporarily show landing to see terminal
+                landingContent.style.display = 'block';
+                dashboardSection.classList.remove('active');
+                document.getElementById('ecosystem').scrollIntoView({ behavior: 'smooth' });
+
+                clearTerminal();
+                addTerminalLine('BOOT', `Sending allocation request for ${amount} ${asset}...`);
+
+                try {
+                    const res = await fetch(`${API_BASE}/api/invest`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Bypass-Tunnel-Reminder': 'true'
+                        },
+                        body: JSON.stringify({ asset, amount })
+                    });
+                    const data = await res.json();
+
+                    if (data.ai_response) {
+                        data.ai_response.split('\n').forEach(line => {
+                            if (line.trim()) addTerminalLine('INFO', line.trim());
+                        });
+                        await new Promise(r => setTimeout(r, 500));
+                    }
+
+                    if (data.error || data.issues) {
+                        addTerminalLine('ACTION', `Transaction Failed: ${data.error || 'Issues found'}`);
+                        if (data.issues) {
+                            data.issues.forEach(issue => addTerminalLine('ACTION', issue.message));
+                        }
+                    } else if (data.hash) {
+                        addTerminalLine('PASS', 'Risk validation complete. Transaction authorized.');
+                        await new Promise(r => setTimeout(r, 600));
+                        addTerminalLine('EXEC', `[DECIDE] Supplying ${amount} ${asset} to Aave V3 on ${data.chain || 'Ethereum Mainnet'}...`);
+                        await new Promise(r => setTimeout(r, 800));
+                        addTerminalLine('SUCCESS', `[REPORT] Transaction submitted: ${data.hash}`);
+                        if (data.economics) {
+                            await new Promise(r => setTimeout(r, 400));
+                            addTerminalLine('INFO', `[ECONOMICS] Supply APY: ${data.economics.supplyAPY} | Projected yield: ${data.economics.expectedYearlyYield}/yr`);
+                            addTerminalLine('INFO', `[ECONOMICS] Gas cost: ${data.economics.gasCostUSD} | Net gain: ${data.economics.netGain}`);
+                        }
+                        if (data.blockExplorer) {
+                            await new Promise(r => setTimeout(r, 300));
+                            addTerminalLine('INFO', `[VERIFY] Etherscan: ${data.blockExplorer}`);
+                        }
+                    } else {
+                        addTerminalLine('SUCCESS', `Operation completed.`);
+                    }
+                } catch (e) {
+                    addTerminalLine('ACTION', `Network Error: ${e.message}`);
+                }
+
+                await new Promise(r => setTimeout(r, 3000));
+                showDashboard();
+            }
+
+            btnExecuteAllocation.addEventListener('click', executeAllocation);
+
+            async function runJudgeMode() {
+                document.getElementById('ecosystem').scrollIntoView({ behavior: 'smooth' });
+                clearTerminal();
+                addTerminalLine('BOOT', 'Starting Judge Mode pipeline...');
+                try {
+                    const res = await fetch(`${API_BASE}/api/judge/run`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Bypass-Tunnel-Reminder': 'true'
+                        },
+                        body: JSON.stringify({ execute: true, requireOnchainProof: false, asset: 'USDT', amount: '1000' })
+                    });
+                    const data = await res.json();
+                    if (!data.ok) {
+                        addTerminalLine('ACTION', `Judge Mode failed: ${data.error || 'unknown error'}`);
+                        return;
+                    }
+
+                    (data.transcript || []).forEach(step => {
+                        addTerminalLine(step.stage, step.message);
+                    });
+
+                    if (data.execution && data.execution.executed) {
+                        const txHash = data.execution?.proof?.txHash || data.execution?.result?.txHash;
+                        const link = data.execution?.proof?.blockExplorer || data.execution?.result?.blockExplorer;
+                        if (txHash) addTerminalLine('EXEC', `TX: ${txHash}`);
+                        if (link) addTerminalLine('LINK', link);
+                    }
+                } catch (e) {
+                    addTerminalLine('ACTION', `Network Error: ${e.message}`);
+                }
+            }
+
+            async function generateProofTx() {
+                document.getElementById('ecosystem').scrollIntoView({ behavior: 'smooth' });
+                addTerminalLine('BOOT', 'Submitting proof transaction...');
+                try {
+                    const res = await fetch(`${API_BASE}/api/proof/tx`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Bypass-Tunnel-Reminder': 'true'
+                        },
+                        body: JSON.stringify({})
+                    });
+                    const data = await res.json();
+                    if (!data.ok) {
+                        addTerminalLine('ACTION', `Proof unavailable: ${data.reason || data.error || 'not configured'}`);
+                        return;
+                    }
+                    addTerminalLine('SUCCESS', `Proof TX: ${data.txHash}`);
+                    addTerminalLine('LINK', data.blockExplorer);
+                } catch (e) {
+                    addTerminalLine('ACTION', `Network Error: ${e.message}`);
+                }
+            }
+
+            const btnJudgeRun = document.getElementById('btn-judge-run');
+            if (btnJudgeRun) btnJudgeRun.addEventListener('click', (e) => { e.preventDefault(); runJudgeMode(); });
+            const btnProofTx = document.getElementById('btn-proof-tx');
+            if (btnProofTx) btnProofTx.addEventListener('click', (e) => { e.preventDefault(); generateProofTx(); });
+
+            // Live Autonomous Monitor — connects to SSE endpoint
+            let monitorEventSource = null;
+            function startLiveMonitor() {
+                if (monitorEventSource) return; // already running
+                monitorEventSource = new EventSource(`${API_BASE}/api/monitor/stream`);
+                const monitorPanel = document.getElementById('monitor-feed');
+
+                monitorEventSource.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (!data.decisions || !monitorPanel) return;
+
+                        const entry = document.createElement('div');
+                        entry.style.cssText = 'margin-bottom:16px; border-left: 2px solid rgba(0,255,102,0.3); padding-left:12px;';
+                        entry.innerHTML = `
+                            <div style="font-family:'JetBrains Mono';font-size:0.7rem;color:#888;margin-bottom:8px;">
+                                CYCLE #${data.cycle} &mdash; ${new Date(data.timestamp).toLocaleTimeString()}
+                            </div>
+                            ${data.decisions.map(d => {
+                            const color = d.startsWith('[OBSERVE]') ? '#888' :
+                                d.startsWith('[ANALYZE]') ? '#fff' :
+                                    d.startsWith('[ECONOMICS]') ? '#00ff66' :
+                                        d.startsWith('[DECIDE]') ? '#00ccee' : '#666';
+                            return `<div style="font-family:'JetBrains Mono';font-size:0.72rem;color:${color};margin-bottom:4px;">${d}</div>`;
+                        }).join('')}
+                        `;
+                        monitorPanel.prepend(entry);
+                    } catch (e) { }
+                };
+            }
+
+            // Start the monitor after page loads
+            setTimeout(startLiveMonitor, 2000);
+
+            function openModal(e) {
+                if (e) e.preventDefault();
+                if (isConnected) {
+                    showDashboard();
+                    return;
+                }
+                walletModal.classList.add('active');
+            }
+
+            function hideModal() {
+                walletModal.classList.remove('active');
+            }
+
+            connectBtns.forEach(btn => {
+                if (btn.id !== 'btn-run-demo-steps') {
+                    btn.addEventListener('click', openModal);
+                }
+            });
+
+            closeModal.addEventListener('click', hideModal);
+            walletModal.addEventListener('click', (e) => {
+                if (e.target === walletModal) hideModal();
+            });
+
+            async function simulateConnection() {
+                hideModal();
+
+                // Scroll to terminal section to see progress
+                ecosystemSection.scrollIntoView({ behavior: 'smooth' });
+
+                clearTerminal();
+                addTerminalLine('BOOT', 'Initializing secure handshake...');
+                await new Promise(r => setTimeout(r, 1000));
+                addTerminalLine('INFO', 'Authenticating via Tether WDK secure enclave...', true);
+                await new Promise(r => setTimeout(r, 1500));
+                addTerminalLine('SUCCESS', 'Infrastructure Connected: 0x71C...4f92');
+
+                isConnected = true;
+                connectBtns.forEach(btn => {
+                    if (btn.id !== 'btn-run-demo-steps' && btn.id !== 'btn-execute-allocation') {
+                        btn.innerHTML = '<i class="fas fa-chart-pie" style="margin-right: 8px;"></i> Dashboard';
+                        btn.style.borderColor = '#00ff00';
+                        btn.style.color = '#00ff00';
+                    }
+                });
+
+                await new Promise(r => setTimeout(r, 800));
+                showDashboard();
+            }
+
+            async function simulateExtensionConnection() {
+                hideModal();
+
+                // Scroll to terminal section to see progress
+                ecosystemSection.scrollIntoView({ behavior: 'smooth' });
+
+                clearTerminal();
+                addTerminalLine('BOOT', 'Initializing extension provider...');
+
+                if (typeof window.ethereum !== 'undefined') {
+                    try {
+                        addTerminalLine('INFO', 'Requesting window.ethereum access...', true);
+                        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                        const account = accounts[0];
+                        const shortAddr = account.substring(0, 6) + '...' + account.substring(account.length - 4);
+
+                        addTerminalLine('SUCCESS', `Extension Authorized: ${shortAddr}`);
+
+                        isConnected = true;
+                        connectBtns.forEach(btn => {
+                            if (btn.id !== 'btn-run-demo-steps' && btn.id !== 'btn-execute-allocation') {
+                                btn.innerHTML = '<i class="fas fa-chart-pie" style="margin-right: 8px;"></i> Dashboard';
+                                btn.style.borderColor = '#00ff00';
+                                btn.style.color = '#00ff00';
+                            }
+                        });
+
+                        await new Promise(r => setTimeout(r, 1200));
+                        showDashboard();
+                    } catch (error) {
+                        addTerminalLine('ACTION', `Connection rejected: ${error.message}`);
+                    }
+                } else {
+                    addTerminalLine('ACTION', 'MetaMask is not installed!');
+                }
+            }
+
+            connectWDK.addEventListener('click', simulateConnection);
+            connectExtension.addEventListener('click', simulateExtensionConnection);
+
+            function addTerminalLine(type, message, isAction = false) {
+                const time = new Date().toLocaleTimeString('en-GB', { hour12: false });
+                const line = document.createElement('div');
+                line.className = 'terminal-line';
+
+                let tagClass = 'tag-info';
+                if (type === 'SUCCESS') tagClass = 'tag-success';
+                if (type === 'ACTION') tagClass = 'tag-action';
+                if (type === 'SCAN') tagClass = 'tag-info';
+                if (type === 'BOOT') tagClass = 'tag-info';
+                if (type === 'PASS') tagClass = 'tag-success';
+                if (type === 'EXEC') tagClass = 'tag-action';
+
+                line.innerHTML = `
+                    <span class="time">${time}</span>
+                    ${isAction ? '<span class="time">></span>' : `<span class="tag ${tagClass}">${type}</span>`}
+                    <span>${message}</span>
+                `;
+
+                terminalBody.appendChild(line);
+                terminalBody.scrollTop = terminalBody.scrollHeight;
+            }
+
+            function clearTerminal() {
+                terminalBody.innerHTML = '';
+                steps.forEach(s => s.classList.remove('active'));
+            }
+
+            async function runHowItWorks() {
+                clearTerminal();
+
+                // Step 1
+                steps[0].classList.add('active');
+                addTerminalLine('BOOT', 'Initializing secure enclave isolation...');
+                await new Promise(r => setTimeout(r, 1000));
+                addTerminalLine('INFO', 'Connecting to Tether WDK P2P Network...', true);
+                await new Promise(r => setTimeout(r, 1200));
+                addTerminalLine('SUCCESS', 'WDK Secure Environment Active');
+
+                await new Promise(r => setTimeout(r, 1000));
+
+                // Step 2
+                steps[1].classList.add('active');
+                addTerminalLine('INFO', 'Scanning Aave V3 Liquidity Pools...', true);
+                await new Promise(r => setTimeout(r, 1500));
+                addTerminalLine('SCAN', 'Found 9.42% APY in Pool_USDT_Mainnet');
+                await new Promise(r => setTimeout(r, 800));
+                addTerminalLine('INFO', 'Running AI Risk Assessment Module...', true);
+                await new Promise(r => setTimeout(r, 1200));
+                addTerminalLine('PASS', 'Risk Score: 0.12 (Institutional Grade)');
+
+                await new Promise(r => setTimeout(r, 1000));
+
+                // Step 3
+                steps[2].classList.add('active');
+                addTerminalLine('INFO', 'Preparing optimized execution plan...', true);
+                await new Promise(r => setTimeout(r, 1500));
+                addTerminalLine('EXEC', 'Supplying 5,000 USDT to Aave V3. Confirmed.');
+                await new Promise(r => setTimeout(r, 800));
+                addTerminalLine('SUCCESS', 'Transaction confirmed. Portfolio optimized.');
+            }
+
+            btnRunDemoSteps.addEventListener('click', runHowItWorks);
+        </script>
+</body>
+
+</html>

@@ -1,0 +1,14 @@
+node_modules/
+.env
+*.log
+.DS_Store
+dist/
+build/
+coverage/
+firebase-debug.log
+firebase-debug.*.log
+deploy.log
+tunnel.log
+.gas-optimizer-queue.json
+*.queue.json
+*.cache.json

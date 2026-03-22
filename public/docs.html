@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YieldKernel Docs | Institutional Autonomous Infrastructure</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #000000;
+            --bg-sidebar: #0a0a0a;
+            --bg-content: #000000;
+            --border: #1a1a1a;
+            --text-main: #ffffff;
+            --text-dim: #a1a1a1;
+            --accent: #ffffff;
+            --accent-green: #00ff66;
+            --code-bg: #0d0d0d;
+            --sidebar-width: 300px;
+            --nav-height: 64px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Top Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--nav-height);
+            background: var(--bg-base);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 1000;
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-decoration: none;
+            color: var(--text-main);
+            letter-spacing: -0.02em;
+        }
+
+        .logo span {
+            font-weight: 300;
+            opacity: 0.5;
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .nav-link {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-link:hover {
+            color: var(--text-main);
+        }
+
+        .btn-app {
+            background: var(--text-main);
+            color: var(--bg-base);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        /* Layout */
+        .layout {
+            display: flex;
+            margin-top: var(--nav-height);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            height: calc(100vh - var(--nav-height));
+            position: fixed;
+            left: 0;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            padding: 32px 24px;
+            overflow-y: auto;
+        }
+
+        .search-container {
+            margin-bottom: 32px;
+        }
+
+        .search-input {
+            width: 100%;
+            background: #111;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 14px;
+            color: var(--text-main);
+            font-size: 0.85rem;
+        }
+
+        .sidebar-section {
+            margin-bottom: 28px;
+        }
+
+        .sidebar-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+        }
+
+        .sidebar-link {
+            display: block;
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            text-decoration: none;
+            padding: 6px 0;
+            transition: color 0.2s;
+        }
+
+        .sidebar-link:hover {
+            color: var(--text-main);
+        }
+
+        .sidebar-link.active {
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: var(--sidebar-width);
+            padding: 64px 80px;
+            max-width: 1000px;
+        }
+
+        h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 16px;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-dim);
+            margin-bottom: 48px;
+        }
+
+        h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-top: 56px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-top: 32px;
+            margin-bottom: 16px;
+        }
+
+        p {
+            margin-bottom: 20px;
+            color: #d1d1d1;
+        }
+
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            background: #1a1a1a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #ff66cc;
+        }
+
+        .code-block-container {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin: 24px 0;
+            overflow: hidden;
+        }
+
+        .code-header {
+            background: #111;
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .code-lang {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        pre {
+            padding: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            color: #e6e6e6;
+        }
+
+        .keyword {
+            color: #ff79c6;
+        }
+
+        .function {
+            color: #50fa7b;
+        }
+
+        .string {
+            color: #f1fa8c;
+        }
+
+        .comment {
+            color: #6272a4;
+        }
+
+        .callout {
+            background: rgba(0, 255, 102, 0.05);
+            border-left: 4px solid var(--accent-green);
+            padding: 20px;
+            border-radius: 0 8px 8px 0;
+            margin: 32px 0;
+        }
+
+        .callout-title {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--accent-green);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin-top: 40px;
+        }
+
+        .card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            transition: border-color 0.2s;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .card:hover {
+            border-color: #333;
+        }
+
+        .card-title {
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+
+        .card-desc {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 40px 24px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav>
+        <div class="nav-left">
+            <a href="index.html" class="logo">Yield<span>Kernel</span></a>
+        </div>
+        <div class="nav-right">
+            <a href="https://github.com/juapperez/yield-kernel" class="nav-link" target="_blank">GitHub</a>
+            <a href="index.html" class="btn-app">Launch App</a>
+        </div>
+    </nav>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="search-container">
+                <input type="text" class="search-input" placeholder="Search documentation...">
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Introduction</div>
+                <a href="#welcome" class="sidebar-link active">Welcome</a>
+                <a href="#quickstart" class="sidebar-link">Quickstart</a>
+                <a href="#architecture" class="sidebar-link">Architecture</a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Core Features</div>
+                <a href="#wdk" class="sidebar-link">Tether WDK Integration</a>
+                <a href="#autonomy" class="sidebar-link">Agent Autonomy</a>
+                <a href="#risk" class="sidebar-link">Risk Engine</a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">API Reference</div>
+                <a href="#api-status" class="sidebar-link">Status API</a>
+                <a href="#api-invest" class="sidebar-link">Invest API</a>
+                <a href="#api-yields" class="sidebar-link">Yields API</a>
+                <a href="#api-judge" class="sidebar-link">Judge Mode API</a>
+                <a href="#api-proof" class="sidebar-link">Proof TX API</a>
+                <a href="#api-monitor" class="sidebar-link">Monitor Stream</a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Integrations</div>
+                <a href="#openclaw" class="sidebar-link">OpenClaw</a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <section id="welcome">
+                <h1>Documentation</h1>
+                <p class="subtitle">Institutional-grade infrastructure for self-custodial AI agents.</p>
+
+                <p>YieldKernel is an autonomous DeFi infrastructure layer that enables AI agents to manage capital with
+                    the security standards of a traditional financial institution. Built on top of Tether's
+                    <strong>Wallet Development Kit (WDK)</strong>, it ensures that while decision-making is automated,
+                    custody remains absolute.</p>
+
+                <div class="grid">
+                    <a href="#quickstart" class="card">
+                        <div class="card-title">Developer Quickstart</div>
+                        <div class="card-desc">Make your first API request and launch the kernel in minutes.</div>
+                    </a>
+                    <a href="#architecture" class="card">
+                        <div class="card-title">System Architecture</div>
+                        <div class="card-desc">Deep dive into the modular components and security enclave.</div>
+                    </a>
+                </div>
+            </section>
+
+            <section id="quickstart">
+                <h2>Developer Quickstart</h2>
+                <p>Launch the YieldKernel infrastructure locally or connect to our production API.</p>
+
+                <h3>1. Installation</h3>
+                <div class="code-block-container">
+                    <div class="code-header">
+                        <span class="code-lang">bash</span>
+                    </div>
+                    <pre><code><span class="comment"># Clone the repository</span>
+git clone https://github.com/juapperez/yield-kernel.git
+cd yield-kernel
+
+<span class="comment"># Install dependencies</span>
+npm install</code></pre>
+                </div>
+
+                <h3>2. Environment Configuration</h3>
+                <p>Create a <code>.env</code> file in the root directory and add your credentials.</p>
+                <div class="code-block-container">
+                    <div class="code-header">
+                        <span class="code-lang">env</span>
+                    </div>
+                    <pre><code>AI_PROVIDER=groq
+GROQ_API_KEY=your_groq_key
+
+RPC_URL=https://eth.llamarpc.com
+CHAIN_ID=1
+PORT=3000
+
+MAX_POSITION_SIZE_USDT=1000
+MIN_APY_THRESHOLD=3.0</code></pre>
+                </div>
+
+                <h3>3. Run</h3>
+                <div class="code-block-container">
+                    <div class="code-header">
+                        <span class="code-lang">bash</span>
+                    </div>
+                    <pre><code>npm start</code></pre>
+                </div>
+            </section>
+
+            <section id="architecture">
+                <h2>System Architecture</h2>
+                <p>YieldKernel utilizes a specialized multi-layer architecture to separate intelligence from execution.
+                </p>
+
+                <div class="callout">
+                    <div class="callout-title">Security First</div>
+                    <p>The execution layer is isolated from the decision-making AI. This ensures that even if an AI
+                        prompt is manipulated, the <strong>Risk Engine</strong> and <strong>WDK Enclave</strong> will
+                        reject unauthorized state transitions.</p>
+                </div>
+
+                <h3>Core Integration Example</h3>
+                <p>Integrating the WDK provider within your custom agent logic:</p>
+                <div class="code-block-container">
+                    <div class="code-header">
+                        <span class="code-lang">javascript</span>
+                    </div>
+                    <pre><code><span class="keyword">import</span> { WalletManager } <span class="keyword">from</span> <span class="string">"./core/wallet.js"</span>;
+
+<span class="keyword">const</span> wallet = <span class="keyword">new</span> <span class="function">WalletManager</span>();
+<span class="keyword">await</span> wallet.<span class="function">initialize</span>();
+
+<span class="comment">// Securely sign an institutional supply transaction</span>
+<span class="keyword">const</span> tx = <span class="keyword">await</span> wallet.<span class="function">signTransaction</span>({
+    to: AAVE_V3_USDT_POOL,
+    value: parseEther(<span class="string">"5000"</span>)
+});</code></pre>
+                </div>
+            </section>
+
+            <section id="api-reference">
+                <h2>API Reference</h2>
+                <p>YieldKernel exposes a high-performance REST API for monitoring and interacting with the autonomous
+                    agent.</p>
+
+                <h3 id="api-status">GET /api/status</h3>
+                <p>Returns the current health and status of the autonomous network.</p>
+                <div class="code-block-container">
+                    <div class="code-header">
+                        <span class="code-lang">json</span>
+                    </div>
+                    <pre><code>{
+  <span class="string">"status"</span>: <span class="string">"operational"</span>,
+  <span class="string">"network"</span>: <span class="string">"Ethereum Mainnet"</span>,
+  <span class="string">"recheck_cycle"</span>: <span class="string">"86400s"</span>,
+  <span class="string">"latency"</span>: <span class="string">"14ms"</span>,
+  <span class="string">"wdk"</span>: {
+    <span class="string">"wdkInstalled"</span>: <span class="keyword">true</span>,
+    <span class="string">"walletMode"</span>: <span class="string">"wdk"</span>,
+    <span class="string">"chainId"</span>: <span class="keyword">1</span>,
+    <span class="string">"rpcUrl"</span>: <span class="string">"https://eth.llamarpc.com"</span>
+  }
+}</code></pre>
+                </div>
+
+                <h3 id="api-invest">POST /api/invest</h3>
+                <p>Triggers the AI agent to evaluate and execute a specific allocation.</p>
+                <div class="code-block-container">
+                    <div class="code-header">
+                        <span class="code-lang">json</span>
+                    </div>
+                    <pre><code><span class="comment">// Request Body</span>
+{
+  <span class="string">"asset"</span>: <span class="string">"USDT"</span>,
+  <span class="string">"amount"</span>: <span class="string">"5000"</span>
+}</code></pre>
+                </div>
+
+                <h3 id="api-judge">POST /api/judge/run</h3>
+                <p>Runs a full end-to-end judge pipeline and returns a structured transcript:
+                    OBSERVE → ANALYZE → ECONOMICS → DECIDE → (EXECUTE) → REPORT.</p>
+                <div class="code-block-container">
+                    <div class="code-header">
+                        <span class="code-lang">json</span>
+                    </div>
+                    <pre><code><span class="comment">// Request Body</span>
+{
+  <span class="string">"asset"</span>: <span class="string">"USDT"</span>,
+  <span class="string">"amount"</span>: <span class="string">"1000"</span>,
+  <span class="string">"execute"</span>: <span class="keyword">true</span>,
+  <span class="string">"requireOnchainProof"</span>: <span class="keyword">false</span>
+}</code></pre>
+                </div>
+
+                <h3 id="api-proof">POST /api/proof/tx</h3>
+                <p>Attempts a real on-chain proof transaction (best used on a testnet). Returns a verifiable explorer link when WDK is active and the wallet has testnet ETH.</p>
+
+                <h3 id="api-monitor">GET /api/monitor/stream</h3>
+                <p>Server-Sent Events stream that emits autonomous decisions every 30 seconds for the UI Live Agent Feed.</p>
+            </section>
+
+            <section id="openclaw">
+                <h2>OpenClaw Integration</h2>
+                <p>YieldKernel exposes HTTP endpoints designed to be called by external agent runtimes. If you are using OpenClaw, the most direct integration is to create a small skill that calls the YieldKernel backend APIs.</p>
+
+                <div class="code-block-container">
+                    <div class="code-header">
+                        <span class="code-lang">text</span>
+                    </div>
+                    <pre><code>Suggested tool calls for an OpenClaw skill:
+
+1) GET  /api/status
+2) GET  /api/yields
+3) POST /api/judge/run
+4) POST /api/proof/tx</code></pre>
+                </div>
+
+                <div class="callout">
+                    <div class="callout-title">Judge Tip</div>
+                    <p>For submissions, record a short demo video showing the Live Agent Feed, then run Judge Mode and open the returned explorer link. The DoraHacks page lists a demo video as a submission requirement.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Simple sidebar active link highlighting on scroll
+        window.addEventListener('scroll', () => {
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('.sidebar-link');
+
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (pageYOffset >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href').includes(current)) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
