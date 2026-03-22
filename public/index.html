@@ -1296,7 +1296,7 @@
             setInterval(updateSystemTime, 1000);
             updateSystemTime();
 
-            const API_BASE = new URLSearchParams(window.location.search).get('api') || '';
+            const API_BASE = new URLSearchParams(window.location.search).get('api') || 'https://yieldkernel-backend.onrender.com';
 
             // Simple Ethereum network status check using public RPC
             async function updateNetworkStatus() {
