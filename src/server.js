@@ -346,11 +346,14 @@ app.post('/api/invest', async (req, res) => {
     const agent = await getAgent();
     const { asset, amount } = req.body;
     req.log.info('invest.request', { asset, amount });
+    
     const prompt = `Assess the risk for supplying ${amount} ${asset} to Aave V3. If it's safe, I EXPLICITLY CONFIRM AND AUTHORIZE this write operation. YOU MUST trigger the 'supply_asset' function call immediately. Output your decision using the [OBSERVE] [ANALYZE] [ECONOMICS] [DECIDE] [REPORT] format.`;
 
     // Reset history to prevent memory leak and context pollution across requests
     agent.conversationHistory = [];
     const aiResponse = await agent.chat(prompt);
+
+    req.log.info('invest.ai_response', { response: aiResponse });
 
     // Look for function call results in history
     const history = agent.conversationHistory;
@@ -360,6 +363,8 @@ app.post('/api/invest', async (req, res) => {
         supplyResult = JSON.parse(msg.content);
       }
     }
+
+    req.log.info('invest.supply_result', { supplyResult, historyLength: history.length });
 
     if (supplyResult && (supplyResult.error || supplyResult.issues)) {
       req.log.warn('invest.blocked', { asset, amount, supplyResult });
@@ -376,12 +381,19 @@ app.post('/api/invest', async (req, res) => {
         protocol: supplyResult.protocol
       });
     } else {
-      req.log.warn('invest.refused', { asset, amount });
-      res.json({ error: 'AI refused to execute or found risks.', ai_response: aiResponse });
+      req.log.warn('invest.refused', { asset, amount, aiResponse, historyLength: history.length });
+      res.json({ 
+        error: 'AI refused to execute or found risks.', 
+        ai_response: aiResponse,
+        debug: {
+          historyLength: history.length,
+          hasSupplyResult: !!supplyResult
+        }
+      });
     }
   } catch (err) {
-    req.log.error('invest.error', { error: { name: err?.name, message: err?.message } });
-    res.status(500).json({ error: err.message });
+    req.log.error('invest.error', { error: { name: err?.name, message: err?.message, stack: err?.stack } });
+    res.status(500).json({ error: err.message, details: err.stack });
   }
 });
 
