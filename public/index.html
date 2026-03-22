@@ -1351,6 +1351,7 @@
             };
 
             let executionStarted = false;
+            let connectionAttempted = false;
 
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
@@ -1358,7 +1359,8 @@
                         entry.target.classList.add('active');
 
                         // Auto-trigger terminal execution when Ecosystem section is in view
-                        if (entry.target.id === 'ecosystem' && !executionStarted) {
+                        // But only if no connection was attempted
+                        if (entry.target.id === 'ecosystem' && !executionStarted && !connectionAttempted) {
                             executionStarted = true;
                             runHowItWorks();
                         }
@@ -1668,6 +1670,7 @@
             });
 
             async function simulateConnection() {
+                connectionAttempted = true; // Mark that connection was attempted
                 hideModal();
 
                 // Scroll to terminal section to see progress
@@ -1682,6 +1685,10 @@
                     if (typeof window.tetherto === 'undefined') {
                         addTerminalLine('ACTION', 'Tether WDK not detected. Please install the Tether WDK extension.');
                         addTerminalLine('INFO', 'Visit: https://tether.to/wdk to install');
+                        
+                        // Stop here - don't run the demo execution
+                        await new Promise(r => setTimeout(r, 2000));
+                        addTerminalLine('INFO', 'Connection cancelled. Install WDK to continue.');
                         return;
                     }
 
@@ -1722,6 +1729,7 @@
             }
 
             async function simulateExtensionConnection() {
+                connectionAttempted = true; // Mark that connection was attempted
                 hideModal();
 
                 // Scroll to terminal section to see progress
