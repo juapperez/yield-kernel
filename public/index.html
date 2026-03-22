@@ -1264,18 +1264,17 @@
         </footer>
         <div class="modal-overlay" id="wallet-modal">
             <div class="modal-content">
-                <h3 style="text-transform: uppercase; letter-spacing: 0.1em; font-weight: 900;">Connect Infrastructure
+                <h3 style="text-transform: uppercase; letter-spacing: 0.1em; font-weight: 900;">Connect to YieldKernel
                 </h3>
-                <p style="color: var(--text-dim); margin-top: 16px; font-size: 0.9rem;">Select your preferred
-                    self-custodial provider to authorize YieldKernel.</p>
+                <p style="color: var(--text-dim); margin-top: 16px; font-size: 0.9rem;">Choose how to connect to the autonomous agent.</p>
 
                 <div class="wallet-options">
                     <button class="wallet-btn" id="connect-wdk">
-                        <span>Tether WDK (Recommended)</span>
-                        <i class="fas fa-shield-halved"></i>
+                        <span>Backend Wallet (Recommended)</span>
+                        <i class="fas fa-server"></i>
                     </button>
                     <button class="wallet-btn" id="connect-extension">
-                        <span>Browser Extension</span>
+                        <span>Browser Extension (MetaMask)</span>
                         <i class="fas fa-wallet"></i>
                     </button>
                 </div>
@@ -1660,45 +1659,40 @@
             });
 
             async function simulateConnection() {
-                connectionAttempted = true; // Mark that connection was attempted
+                connectionAttempted = true;
                 hideModal();
 
                 // Scroll to terminal section to see progress
                 ecosystemSection.scrollIntoView({ behavior: 'smooth' });
 
                 clearTerminal();
-                addTerminalLine('BOOT', 'Initializing Tether WDK connection...');
+                addTerminalLine('BOOT', 'Connecting to YieldKernel backend...');
                 await new Promise(r => setTimeout(r, 800));
                 
                 try {
-                    // Check if WDK is available
-                    if (typeof window.tetherto === 'undefined') {
-                        addTerminalLine('ACTION', 'Tether WDK not detected. Please install the Tether WDK extension.');
-                        addTerminalLine('INFO', 'Visit: https://tether.to/wdk to install');
-                        
-                        // Stop here - don't run the demo execution
-                        await new Promise(r => setTimeout(r, 2000));
-                        addTerminalLine('INFO', 'Connection cancelled. Install WDK to continue.');
-                        return;
-                    }
-
-                    addTerminalLine('INFO', 'Requesting WDK authorization...', true);
+                    // Connect to backend wallet instead of browser extension
+                    addTerminalLine('INFO', 'Checking backend wallet status...', true);
                     
-                    // Request WDK connection - this will show the WDK popup
-                    const accounts = await window.tetherto.request({ 
-                        method: 'eth_requestAccounts' 
+                    const response = await fetch(`${API_BASE}/api/status`, {
+                        headers: { 'Bypass-Tunnel-Reminder': 'true' }
                     });
                     
-                    if (!accounts || accounts.length === 0) {
-                        addTerminalLine('ACTION', 'WDK authorization denied');
+                    if (!response.ok) {
+                        addTerminalLine('ACTION', 'Backend not available. Please check your API connection.');
                         return;
                     }
-
-                    const account = accounts[0];
-                    const shortAddr = account.substring(0, 6) + '...' + account.substring(account.length - 4);
                     
-                    addTerminalLine('SUCCESS', `WDK Connected: ${shortAddr}`);
-                    addTerminalLine('INFO', 'Self-custodial wallet authorized via Tether WDK');
+                    const data = await response.json();
+                    
+                    if (!data.address) {
+                        addTerminalLine('ACTION', 'Backend wallet not initialized.');
+                        return;
+                    }
+                    
+                    const shortAddr = data.address;
+                    addTerminalLine('SUCCESS', `Connected to backend wallet: ${shortAddr}`);
+                    addTerminalLine('INFO', `Wallet mode: ${data.wdk?.walletMode?.toUpperCase() || 'ETHERS'}`);
+                    addTerminalLine('INFO', `Network: Ethereum Mainnet (Chain ${data.wdk?.chainId || 1})`);
 
                     isConnected = true;
                     connectBtns.forEach(btn => {
@@ -1713,8 +1707,8 @@
                     showDashboard();
                     
                 } catch (error) {
-                    addTerminalLine('ACTION', `WDK connection failed: ${error.message}`);
-                    addTerminalLine('INFO', 'User may have rejected the connection request');
+                    addTerminalLine('ACTION', `Connection failed: ${error.message}`);
+                    addTerminalLine('INFO', 'Make sure the backend is running and accessible');
                 }
             }
 
