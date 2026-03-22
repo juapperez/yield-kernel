@@ -144,7 +144,7 @@ export class DeFiManager {
         gasCostUSD: gasUsd // Using gasUsd from current scope
       }
     });
-    
+
     // Update our simulated dashboard state
     const existingPosIndex = this.simulatedPositions.findIndex(p => p.asset === asset.toUpperCase());
     if (existingPosIndex >= 0) {
@@ -205,7 +205,7 @@ export class DeFiManager {
         swap: { mainnet: 150000n, l2: 100000n },
         default: { mainnet: 150000n, l2: 100000n }
       };
-      
+
       const isL2 = [10, 42161, 8453, 137].includes(this.chainId);
       const opType = operation || 'default';
       const estimates = baseGasEstimates[opType] || baseGasEstimates.default;
@@ -232,7 +232,7 @@ export class DeFiManager {
 
   async _estimateGasForOperation(operation, params) {
     const userAddress = await this.wallet.getAddress();
-    
+
     // Handle different operation types
     if (params.protocol && params.asset) {
       const adapter = this.registry.getProtocol(params.protocol);
@@ -253,22 +253,22 @@ export class DeFiManager {
           const supplyIface = new ethers.Interface(['function supply(address asset,uint256 amount,address onBehalfOf,uint16 referralCode)']);
           data = supplyIface.encodeFunctionData('supply', [assetAddress, amountUnits, userAddress, 0]);
           break;
-        
+
         case 'withdraw':
           const withdrawIface = new ethers.Interface(['function withdraw(address asset,uint256 amount,address to)']);
           data = withdrawIface.encodeFunctionData('withdraw', [assetAddress, amountUnits, userAddress]);
           break;
-        
+
         case 'borrow':
           const borrowIface = new ethers.Interface(['function borrow(address asset,uint256 amount,uint256 interestRateMode,uint16 referralCode,address onBehalfOf)']);
           data = borrowIface.encodeFunctionData('borrow', [assetAddress, amountUnits, 2, 0, userAddress]); // 2 = variable rate
           break;
-        
+
         case 'repay':
           const repayIface = new ethers.Interface(['function repay(address asset,uint256 amount,uint256 interestRateMode,address onBehalfOf)']);
           data = repayIface.encodeFunctionData('repay', [assetAddress, amountUnits, 2, userAddress]);
           break;
-        
+
         default:
           throw new Error(`Unsupported operation: ${operation}`);
       }
