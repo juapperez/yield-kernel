@@ -1261,17 +1261,13 @@
         </footer>
         <div class="modal-overlay" id="wallet-modal">
             <div class="modal-content">
-                <h3 style="text-transform: uppercase; letter-spacing: 0.1em; font-weight: 900;">Connect to YieldKernel
+                <h3 style="text-transform: uppercase; letter-spacing: 0.1em; font-weight: 900;">Connect Wallet
                 </h3>
-                <p style="color: var(--text-dim); margin-top: 16px; font-size: 0.9rem;">Choose how to connect to the autonomous agent.</p>
+                <p style="color: var(--text-dim); margin-top: 16px; font-size: 0.9rem;">Connect your browser wallet to access the dashboard.</p>
 
                 <div class="wallet-options">
-                    <button class="wallet-btn" id="connect-wdk">
-                        <span>Backend Wallet (Recommended)</span>
-                        <i class="fas fa-server"></i>
-                    </button>
                     <button class="wallet-btn" id="connect-extension">
-                        <span>Browser Extension (MetaMask)</span>
+                        <span>Browser Wallet (MetaMask)</span>
                         <i class="fas fa-wallet"></i>
                     </button>
                 </div>
@@ -1370,7 +1366,6 @@
             const terminalBody = document.getElementById('terminal-body');
             const walletModal = document.getElementById('wallet-modal');
             const closeModal = document.getElementById('close-modal');
-            const connectWDK = document.getElementById('connect-wdk');
             const connectExtension = document.getElementById('connect-extension');
             const connectBtns = document.querySelectorAll('.btn-launch');
             const landingContent = document.getElementById('landing-content');
@@ -1666,60 +1661,6 @@
                 if (e.target === walletModal) hideModal();
             });
 
-            async function simulateConnection() {
-                connectionAttempted = true;
-                hideModal();
-
-                // Scroll to terminal section to see progress
-                ecosystemSection.scrollIntoView({ behavior: 'smooth' });
-
-                clearTerminal();
-                addTerminalLine('BOOT', 'Connecting to YieldKernel backend...');
-                await new Promise(r => setTimeout(r, 800));
-                
-                try {
-                    // Connect to backend wallet instead of browser extension
-                    addTerminalLine('INFO', 'Checking backend wallet status...', true);
-                    
-                    const response = await fetch(`${API_BASE}/api/status`, {
-                        headers: { 'Bypass-Tunnel-Reminder': 'true' }
-                    });
-                    
-                    if (!response.ok) {
-                        addTerminalLine('ACTION', 'Backend not available. Please check your API connection.');
-                        return;
-                    }
-                    
-                    const data = await response.json();
-                    
-                    if (!data.address) {
-                        addTerminalLine('ACTION', 'Backend wallet not initialized.');
-                        return;
-                    }
-                    
-                    const shortAddr = data.address;
-                    addTerminalLine('SUCCESS', `Connected to backend wallet: ${shortAddr}`);
-                    addTerminalLine('INFO', `Wallet mode: ${data.wdk?.walletMode?.toUpperCase() || 'ETHERS'}`);
-                    addTerminalLine('INFO', `Network: Ethereum Mainnet (Chain ${data.wdk?.chainId || 1})`);
-
-                    isConnected = true;
-                    connectBtns.forEach(btn => {
-                        if (btn.id !== 'btn-run-demo-steps' && btn.id !== 'btn-execute-allocation') {
-                            btn.innerHTML = '<i class="fas fa-chart-pie" style="margin-right: 8px;"></i> Dashboard';
-                            btn.style.borderColor = '#00ff00';
-                            btn.style.color = '#00ff00';
-                        }
-                    });
-
-                    await new Promise(r => setTimeout(r, 800));
-                    showDashboard();
-                    
-                } catch (error) {
-                    addTerminalLine('ACTION', `Connection failed: ${error.message}`);
-                    addTerminalLine('INFO', 'Make sure the backend is running and accessible');
-                }
-            }
-
             async function simulateExtensionConnection() {
                 connectionAttempted = true; // Mark that connection was attempted
                 hideModal();
@@ -1758,7 +1699,6 @@
                 }
             }
 
-            connectWDK.addEventListener('click', simulateConnection);
             connectExtension.addEventListener('click', simulateExtensionConnection);
 
             function addTerminalLine(type, message, isAction = false) {
