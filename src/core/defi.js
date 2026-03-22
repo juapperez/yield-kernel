@@ -192,33 +192,7 @@ export class DeFiManager {
     const maxPriorityFeePerGas = fee.maxPriorityFeePerGas || 0n;
 
     const gasPriceGwei = maxFeePerGas ? Number(ethers.formatUnits(maxFeePerGas, 'gwei')) : null;
-    let gasLimit = null;
-
-    // Try to get real gas estimate from the blockchain
-    try {
-      gasLimit = await this._estimateGasForOperation(operation, params);
-    } catch (e) {
-      this.log.warn('gas.estimate.failed', { operation, params: { protocol: params.protocol, asset: params.asset }, error: { name: e?.name, message: e?.message } });
-    }
-
-    if (!gasLimit) {
-      // Fallback to chain-specific base estimates only if actual estimation fails
-      const baseGasEstimates = {
-        supply: { mainnet: 220000n, l2: 150000n },
-        withdraw: { mainnet: 180000n, l2: 120000n },
-        borrow: { mainnet: 250000n, l2: 180000n },
-        repay: { mainnet: 200000n, l2: 140000n },
-        approve: { mainnet: 50000n, l2: 45000n },
-        swap: { mainnet: 150000n, l2: 100000n },
-        default: { mainnet: 150000n, l2: 100000n }
-      };
-
-      const isL2 = [10, 42161, 8453, 137].includes(this.chainId);
-      const opType = operation || 'default';
-      const estimates = baseGasEstimates[opType] || baseGasEstimates.default;
-      gasLimit = isL2 ? estimates.l2 : estimates.mainnet;
-      this.log.info('gas.estimate.fallback', { operation, gasLimit: gasLimit.toString(), isL2 });
-    }
+    const gasLimit = await this._estimateGasForOperation(operation, params);
 
     const costWei = maxFeePerGas ? (gasLimit * maxFeePerGas) : null;
     const estimatedCostETH = costWei ? Number(ethers.formatEther(costWei)) : null;
