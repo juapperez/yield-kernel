@@ -113,57 +113,50 @@ export class DeFiManager {
   }
 
   async supplyToAave(asset, amount) {
+    return await this.supplyToProtocol('aave-v3', asset, amount);
+  }
+
+  async supplyToProtocol(protocol, asset, amount) {
     await this.initialize();
-    const adapter = this.registry.getProtocol('aave-v3');
+    const protocolName = String(protocol || '').toLowerCase();
+    const adapter = this.registry.getProtocol(protocolName);
+    const assetAddress = this._resolveAssetAddress(adapter, asset);
+    const amountUnits = await this._amountToUnits(assetAddress, amount);
 
-    const assetAddress = adapter._resolveAssetAddress(asset);
-    const token = new ethers.Contract(assetAddress, ['function decimals() view returns (uint8)'], this.provider);
-    const decimals = Number(await token.decimals());
-    const amountUnits = ethers.parseUnits(String(amount), decimals);
-
-    this.log.info('tx.supply.request', { protocol: 'aave-v3', chainId: this.chainId, asset, amount });
+    this.log.info('tx.supply.request', { protocol: protocolName, chainId: this.chainId, asset, amount });
     const receipt = await adapter.supply(assetAddress, amountUnits);
-    const txHash = receipt?.hash || receipt?.transactionHash;
+    const txHash = receipt?.txHash || receipt?.hash || receipt?.transactionHash;
     if (!txHash) throw new Error('Transaction hash not found in receipt');
 
-    const gas = await this.estimateGas('supply', { protocol: 'aave-v3', asset, amount }).catch(() => null);
+    const gas = await this.estimateGas('supply', { protocol: protocolName, asset, amount }).catch(() => null);
     const yields = await this.getAvailableYields().catch(() => []);
-    const best = yields.find((y) => String(y.asset).toUpperCase() === String(asset).toUpperCase() && String(y.protocol).includes('aave-v3')) || null;
-    const apy = best ? Number(best.supplyAPY || 0) : null;
+    const best = yields.find((y) =>
+      String(y.asset).toUpperCase() === String(asset).toUpperCase() &&
+      String(y.protocol || '').toLowerCase() === protocolName
+    ) || null;
+
+    const apy = best ? Number(best.supplyAPY || best.totalAPY || 0) : null;
     const expectedYearlyYield = apy ? (Number(amount) * apy / 100) : null;
     const gasUsd = gas ? Number(gas.estimatedCostUSD) : null;
 
-    this.log.info('tx.supply.submitted', {
-      txHash,
-      // Assuming 'contracts' and 'aavePool' are defined elsewhere, or this is a placeholder.
-      // For now, I'll comment out contractAddress as it's not in the current class definition.
-      // contractAddress: this.contracts.aavePool,
-      economics: {
-        supplyAPY: apy,
-        expectedYearlyYieldUSD: expectedYearlyYield,
-        gasCostUSD: gasUsd // Using gasUsd from current scope
-      }
-    });
-
-    // Update our simulated dashboard state
-    const existingPosIndex = this.simulatedPositions.findIndex(p => p.asset === asset.toUpperCase());
+    const existingPosIndex = this.simulatedPositions.findIndex((p) => p.asset === String(asset).toUpperCase() && String(p.protocol || '').toLowerCase() === protocolName);
     if (existingPosIndex >= 0) {
       const newTotal = parseFloat(this.simulatedPositions[existingPosIndex].amount) + parseFloat(amount);
       this.simulatedPositions[existingPosIndex].amount = newTotal.toString();
+      this.simulatedPositions[existingPosIndex].apy = apy ? apy.toString() : this.simulatedPositions[existingPosIndex].apy;
     } else {
       this.simulatedPositions.push({
-        asset: asset.toUpperCase(),
+        protocol: protocolName,
+        asset: String(asset).toUpperCase(),
         amount: amount.toString(),
-        apy: apy ? apy.toString() : '0', // Ensure apy is a string
-        // Assuming 'contracts' is defined elsewhere, or this is a placeholder.
-        // For now, I'll use a generic placeholder for address.
-        address: assetAddress || 'UNKNOWN' // Use resolved assetAddress
+        apy: apy ? apy.toString() : '0',
+        address: assetAddress || 'UNKNOWN'
       });
     }
 
     return {
       success: true,
-      protocol: 'aave-v3',
+      protocol: protocolName,
       chainId: this.chainId,
       asset,
       amount,
@@ -176,6 +169,20 @@ export class DeFiManager {
         netGain: expectedYearlyYield !== null && gasUsd !== null ? `$${(expectedYearlyYield - gasUsd).toFixed(4)} / year` : null
       }
     };
+  }
+
+  _resolveAssetAddress(adapter, asset) {
+    if (typeof asset === 'string' && asset.startsWith('0x') && asset.length === 42) return asset;
+    if (adapter && typeof adapter._resolveAssetAddress === 'function') {
+      return adapter._resolveAssetAddress(asset);
+    }
+    return String(asset);
+  }
+
+  async _amountToUnits(assetAddress, amount) {
+    const token = new ethers.Contract(assetAddress, ['function decimals() view returns (uint8)'], this.provider);
+    const decimals = Number(await token.decimals());
+    return ethers.parseUnits(String(amount), decimals);
   }
 
   async estimateGas(operation, params = {}) {
@@ -245,35 +252,55 @@ export class DeFiManager {
       const decimals = Number(await token.decimals());
       const amountUnits = params.amount ? ethers.parseUnits(String(params.amount), decimals) : ethers.parseUnits('1', decimals);
 
-      const poolAddress = adapter.getContractAddress('pool');
       let data;
+      let to;
 
-      switch (operation) {
-        case 'supply':
-          const supplyIface = new ethers.Interface(['function supply(address asset,uint256 amount,address onBehalfOf,uint16 referralCode)']);
-          data = supplyIface.encodeFunctionData('supply', [assetAddress, amountUnits, userAddress, 0]);
-          break;
-
-        case 'withdraw':
-          const withdrawIface = new ethers.Interface(['function withdraw(address asset,uint256 amount,address to)']);
-          data = withdrawIface.encodeFunctionData('withdraw', [assetAddress, amountUnits, userAddress]);
-          break;
-
-        case 'borrow':
-          const borrowIface = new ethers.Interface(['function borrow(address asset,uint256 amount,uint256 interestRateMode,uint16 referralCode,address onBehalfOf)']);
-          data = borrowIface.encodeFunctionData('borrow', [assetAddress, amountUnits, 2, 0, userAddress]); // 2 = variable rate
-          break;
-
-        case 'repay':
-          const repayIface = new ethers.Interface(['function repay(address asset,uint256 amount,uint256 interestRateMode,address onBehalfOf)']);
-          data = repayIface.encodeFunctionData('repay', [assetAddress, amountUnits, 2, userAddress]);
-          break;
-
-        default:
-          throw new Error(`Unsupported operation: ${operation}`);
+      const protocolName = String(params.protocol || '').toLowerCase();
+      if (protocolName === 'compound-v3') {
+        to = adapter.getContractAddress('comet');
+        switch (operation) {
+          case 'supply': {
+            const supplyIface = new ethers.Interface(['function supply(address asset,uint256 amount)']);
+            data = supplyIface.encodeFunctionData('supply', [assetAddress, amountUnits]);
+            break;
+          }
+          case 'withdraw': {
+            const withdrawIface = new ethers.Interface(['function withdraw(address asset,uint256 amount)']);
+            data = withdrawIface.encodeFunctionData('withdraw', [assetAddress, amountUnits]);
+            break;
+          }
+          default:
+            throw new Error(`Unsupported operation for compound-v3: ${operation}`);
+        }
+      } else {
+        to = adapter.getContractAddress('pool');
+        switch (operation) {
+          case 'supply': {
+            const supplyIface = new ethers.Interface(['function supply(address asset,uint256 amount,address onBehalfOf,uint16 referralCode)']);
+            data = supplyIface.encodeFunctionData('supply', [assetAddress, amountUnits, userAddress, 0]);
+            break;
+          }
+          case 'withdraw': {
+            const withdrawIface = new ethers.Interface(['function withdraw(address asset,uint256 amount,address to)']);
+            data = withdrawIface.encodeFunctionData('withdraw', [assetAddress, amountUnits, userAddress]);
+            break;
+          }
+          case 'borrow': {
+            const borrowIface = new ethers.Interface(['function borrow(address asset,uint256 amount,uint256 interestRateMode,uint16 referralCode,address onBehalfOf)']);
+            data = borrowIface.encodeFunctionData('borrow', [assetAddress, amountUnits, 2, 0, userAddress]);
+            break;
+          }
+          case 'repay': {
+            const repayIface = new ethers.Interface(['function repay(address asset,uint256 amount,uint256 interestRateMode,address onBehalfOf)']);
+            data = repayIface.encodeFunctionData('repay', [assetAddress, amountUnits, 2, userAddress]);
+            break;
+          }
+          default:
+            throw new Error(`Unsupported operation: ${operation}`);
+        }
       }
 
-      return await this.provider.estimateGas({ from: userAddress, to: poolAddress, data });
+      return await this.provider.estimateGas({ from: userAddress, to, data });
     }
 
     // Handle approve operations

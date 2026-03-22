@@ -10,12 +10,25 @@ export class RiskManager {
   }
 
   assessYieldOpportunity(opportunity) {
+    if (!opportunity) {
+      return {
+        opportunity: null,
+        risks: ['Opportunity not found'],
+        score: { total: 0, breakdown: { missing: -100 } },
+        recommendation: 'REJECTED',
+        timestamp: new Date().toISOString()
+      };
+    }
+
     const risks = [];
     const score = { total: 100, breakdown: {} };
+    const supplyAPY = Number(opportunity?.supplyAPY ?? opportunity?.totalAPY ?? 0);
+    const liquidityUSD = Number.parseFloat(String(opportunity?.liquidity ?? '0'));
+    const protocolRisk = String(opportunity?.risk || 'medium').toLowerCase();
 
     // APY check
-    if (opportunity.supplyAPY < this.config.minAPY) {
-      risks.push(`APY ${opportunity.supplyAPY}% below minimum threshold ${this.config.minAPY}%`);
+    if (supplyAPY < this.config.minAPY) {
+      risks.push(`APY ${supplyAPY}% below minimum threshold ${this.config.minAPY}%`);
       score.breakdown.apy = -20;
       score.total -= 20;
     } else {
@@ -23,7 +36,6 @@ export class RiskManager {
     }
 
     // Liquidity check
-    const liquidityUSD = parseFloat(opportunity.liquidity);
     if (liquidityUSD < 1000000) {
       risks.push('Low liquidity - potential slippage risk');
       score.breakdown.liquidity = -15;
@@ -38,7 +50,7 @@ export class RiskManager {
       'medium': -10,
       'high': -30
     };
-    score.breakdown.protocol = protocolRiskScores[opportunity.risk] || -10;
+    score.breakdown.protocol = protocolRiskScores[protocolRisk] || -10;
     score.total += score.breakdown.protocol;
 
     // Overall assessment
@@ -60,6 +72,16 @@ export class RiskManager {
 
   validateTransaction(tx) {
     const issues = [];
+    const protocol = String(tx.protocol || '').toLowerCase();
+    if (protocol) {
+      const allowed = ['aave-v3', 'compound-v3', 'spark'];
+      if (!allowed.includes(protocol)) {
+        issues.push({
+          severity: 'CRITICAL',
+          message: `Unsupported protocol: ${protocol}`
+        });
+      }
+    }
 
     // Amount validation
     if (tx.amount && parseFloat(tx.amount) > this.config.maxPositionSize) {

@@ -13,6 +13,8 @@ export class PortfolioMonitor {
     this.strategyEngine = config.strategyEngine || null;
     this.portfolioCalculator = config.portfolioCalculator || null;
     this.protocolRegistry = config.protocolRegistry || null;
+    this.riskEngine = config.riskEngine || null;
+    this.priceOracle = config.priceOracle || null;
     
     // Performance tracking
     this.performanceHistory = [];
@@ -41,6 +43,12 @@ export class PortfolioMonitor {
     }
     if (integrations.protocolRegistry) {
       this.protocolRegistry = integrations.protocolRegistry;
+    }
+    if (integrations.riskEngine) {
+      this.riskEngine = integrations.riskEngine;
+    }
+    if (integrations.priceOracle) {
+      this.priceOracle = integrations.priceOracle;
     }
 
     this.log.info('monitor.integrations_configured');
@@ -96,6 +104,7 @@ export class PortfolioMonitor {
         positions,
         yields
       );
+      const varAnalysis = await this._computeVaRFromSimulatedPositions().catch(() => null);
 
       this.log.info('monitor.snapshot', {
         totalSuppliedUSD: this._calculateTotalValue(positions),
@@ -132,12 +141,31 @@ export class PortfolioMonitor {
         positions,
         yields,
         riskReport,
-        rebalanceOpportunity
+        rebalanceOpportunity,
+        varAnalysis
       };
     } catch (error) {
       this.log.error('monitor.error', { error: { name: error?.name, message: error?.message } });
       throw error;
     }
+  }
+
+  async _computeVaRFromSimulatedPositions() {
+    if (!this.riskEngine || !this.priceOracle) return null;
+    const simulated = Array.isArray(this.defiManager?.simulatedPositions) ? this.defiManager.simulatedPositions : [];
+    if (simulated.length === 0) return null;
+
+    const enriched = [];
+    for (const p of simulated) {
+      const amount = Number(p.amount);
+      if (!Number.isFinite(amount) || amount <= 0) continue;
+      const priceData = await this.priceOracle.getPrice(p.asset).catch(() => null);
+      const price = priceData && Number.isFinite(Number(priceData.price)) ? Number(priceData.price) : null;
+      if (price === null) continue;
+      enriched.push({ asset: p.asset, amountUSD: amount * price });
+    }
+    if (enriched.length === 0) return null;
+    return await this.riskEngine.calculateVaR(enriched);
   }
 
   async proposeRebalance(rebalanceCheck) {

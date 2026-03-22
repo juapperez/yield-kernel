@@ -382,8 +382,7 @@
                 <p>YieldKernel is an autonomous DeFi infrastructure layer that enables AI agents to manage capital with
                     the security standards of a traditional financial institution. Built on top of Tether's
                     <strong>Wallet Development Kit (WDK)</strong>, it ensures that while decision-making is automated,
-                    custody remains absolute.
-                </p>
+                    custody remains absolute.</p>
 
                 <div class="grid">
                     <a href="#quickstart" class="card">
@@ -392,14 +391,14 @@
                     </a>
                     <a href="#architecture" class="card">
                         <div class="card-title">System Architecture</div>
-                        <div class="card-desc">Deep dive into the modular components and execution safeguards.</div>
+                        <div class="card-desc">Deep dive into the modular components and security enclave.</div>
                     </a>
                 </div>
             </section>
 
             <section id="quickstart">
                 <h2>Developer Quickstart</h2>
-                <p>Launch the YieldKernel infrastructure locally or connect to a hosted API.</p>
+                <p>Launch the YieldKernel infrastructure locally or connect to our production API.</p>
 
                 <h3>1. Installation</h3>
                 <div class="code-block-container">
@@ -438,16 +437,6 @@ MIN_APY_THRESHOLD=3.0</code></pre>
                     </div>
                     <pre><code>npm start</code></pre>
                 </div>
-
-                <h3>4. UI → API Routing</h3>
-                <p>The web UI calls <code>/api/*</code> on the same origin by default. To point the UI at a different
-                    backend, open the UI with an <code>api</code> query parameter:</p>
-                <div class="code-block-container">
-                    <div class="code-header">
-                        <span class="code-lang">text</span>
-                    </div>
-                    <pre><code>http://localhost:3000/?api=https://your-backend.example.com</code></pre>
-                </div>
             </section>
 
             <section id="architecture">
@@ -458,7 +447,7 @@ MIN_APY_THRESHOLD=3.0</code></pre>
                 <div class="callout">
                     <div class="callout-title">Security First</div>
                     <p>The execution layer is isolated from the decision-making AI. This ensures that even if an AI
-                        prompt is manipulated, the <strong>Risk Engine</strong> and <strong>WDK wallet layer</strong>
+                        prompt is manipulated, the <strong>Risk Engine</strong> and <strong>WDK Enclave</strong> will
                         will
                         reject unauthorized state transitions.</p>
                 </div>
@@ -468,52 +457,18 @@ MIN_APY_THRESHOLD=3.0</code></pre>
                 <div class="code-block-container">
                     <div class="code-header">
                         <span class="code-lang">javascript</span>
-                    </div>
+                    <pre><code><span class="keyword">import</span> { WalletManager } <span class="keyword">from</span> <span class="string">"./core/wallet.js"</span>;
                     <pre><code><span class="keyword">import</span> { WalletManager } <span class="keyword">from</span> <span class="string">"./src/core/wallet.js"</span>;
-
-<span class="keyword">const</span> walletManager = <span class="keyword">new</span> <span class="function">WalletManager</span>();
+<span class="keyword">const</span> wallet = <span class="keyword">new</span> <span class="function">WalletManager</span>();
+<span class="keyword">await</span> wallet.<span class="function">initialize</span>();
 <span class="keyword">await</span> walletManager.<span class="function">initialize</span>();
-
-<span class="keyword">const</span> status = walletManager.<span class="function">getRuntimeStatus</span>();
-<span class="keyword">const</span> address = <span class="keyword">await</span> walletManager.<span class="function">getAddress</span>();
-
-<span class="comment">// Minimal on-chain proof: send a 0-value tx to self (requires funded account)</span>
-<span class="keyword">const</span> tx = <span class="keyword">await</span> walletManager.wallet.<span class="function">sendTransaction</span>({
-    to: address,
-    value: <span class="string">"0x0"</span>
-});
-
+<span class="comment">// Securely sign an institutional supply transaction</span>
+<span class="keyword">const</span> tx = <span class="keyword">await</span> wallet.<span class="function">signTransaction</span>({
+    to: AAVE_V3_USDT_POOL,
+    value: parseEther(<span class="string">"5000"</span>)
+});</code></pre>
 console.log(status, tx.hash);</code></pre>
                 </div>
-            </section>
-
-            <section id="wdk">
-                <h2>Tether WDK Integration</h2>
-                <p>YieldKernel uses Tether's WDK EVM wallet when available. If WDK is not installed, the system falls
-                    back to an Ethers wallet using <code>WALLET_MNEMONIC</code>.</p>
-                <p>The runtime wallet mode is exposed through <code>GET /api/status</code> in the <code>wdk</code>
-                    object, including <code>wdkInstalled</code>, <code>walletMode</code>, <code>chainId</code>, and
-                    <code>rpcUrl</code>.
-                </p>
-            </section>
-
-            <section id="autonomy">
-                <h2>Agent Autonomy</h2>
-                <p>The system supports a live autonomy feed via Server-Sent Events at
-                    <code>GET /api/monitor/stream</code>. This endpoint emits periodic cycles showing the agent's
-                    observed yields, selected best opportunity, risk score, and gas economics.
-                </p>
-            </section>
-
-            <section id="risk">
-                <h2>Risk Engine</h2>
-                <p>Before executing any value-moving action, YieldKernel evaluates opportunities against explicit
-                    constraints such as minimum APY and maximum position size. The judge pipeline
-                    (<code>POST /api/judge/run</code>) returns the full transcript and the computed economics used in
-                    the decision.</p>
-                <p>Key policy knobs are configured via environment variables including
-                    <code>MAX_POSITION_SIZE_USDT</code> and <code>MIN_APY_THRESHOLD</code>.
-                </p>
             </section>
 
             <section id="api-reference">
@@ -531,8 +486,6 @@ console.log(status, tx.hash);</code></pre>
   <span class="string">"status"</span>: <span class="string">"operational"</span>,
   <span class="string">"network"</span>: <span class="string">"Ethereum Mainnet"</span>,
   <span class="string">"recheck_cycle"</span>: <span class="string">"86400s"</span>,
-  <span class="string">"latency"</span>: <span class="string">"14ms"</span>,
-  <span class="string">"address"</span>: <span class="string">"0x1234...abcd"</span>,
   <span class="string">"blockNumber"</span>: <span class="keyword">12345678</span>,
   <span class="string">"wdk"</span>: {
     <span class="string">"wdkInstalled"</span>: <span class="keyword">true</span>,
@@ -556,10 +509,6 @@ console.log(status, tx.hash);</code></pre>
 }</code></pre>
                 </div> 
 
-                <h3 id="api-yields">GET /api/yields</h3>
-                <p>Returns the current yield landscape across supported protocols. Each entry includes a risk score and
-                    recommendation computed by the risk engine.</p>
-
                 <h3 id="api-judge">POST /api/judge/run</h3>
                 <p>Runs a full end-to-end judge pipeline and returns a structured transcript:
                     OBSERVE → ANALYZE → ECONOMICS → DECIDE → (EXECUTE) → REPORT.</p>
@@ -576,19 +525,15 @@ console.log(status, tx.hash);</code></pre>
 }</code></pre>
                 </div>
 
-                <h3 id="api-proof">POST /api/proof/tx</h3>
-                <p>Attempts a real on-chain proof transaction (best used on a testnet). Returns a verifiable explorer
+                <p>Attempts a real on-chain proof transaction (best used on a testnet). Returns a verifiable explorer link when WDK is active and the wallet has testnet ETH.</p>
                     link when WDK is active and the wallet has testnet ETH.</p>
 
-                <h3 id="api-monitor">GET /api/monitor/stream</h3>
-                <p>Server-Sent Events stream that emits autonomous decisions every 30 seconds for the UI Live Agent
+                <p>Server-Sent Events stream that emits autonomous decisions every 30 seconds for the UI Live Agent Feed.</p>
                     Feed.</p>
             </section>
 
             <section id="openclaw">
-                <h2>OpenClaw Integration</h2>
-                <p>YieldKernel exposes HTTP endpoints designed to be called by external agent runtimes. If you are using
-                    OpenClaw, the most direct integration is to create a small skill that calls the YieldKernel backend
+                <p>YieldKernel exposes HTTP endpoints designed to be called by external agent runtimes. If you are using OpenClaw, the most direct integration is to create a small skill that calls the YieldKernel backend APIs.</p>
                     APIs.</p>
 
                 <div class="code-block-container">
@@ -604,9 +549,7 @@ console.log(status, tx.hash);</code></pre>
                 </div>
 
                 <div class="callout">
-                    <div class="callout-title">Judge Tip</div>
-                    <p>For submissions, record a short demo video showing the Live Agent Feed, then run Judge Mode and
-                        open the returned explorer link. The DoraHacks page lists a demo video as a submission
+                    <p>For submissions, record a short demo video showing the Live Agent Feed, then run Judge Mode and open the returned explorer link. The DoraHacks page lists a demo video as a submission requirement.</p>
                         requirement.</p>
                 </div>
             </section>

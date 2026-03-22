@@ -23,11 +23,13 @@ export class WalletManager {
   constructor(config = {}) {
     this.log = createLogger({ service: 'yieldkernel-wallet' });
     this.wdkInstalled = Boolean(EvmWallet);
-    this.walletMode = this.wdkInstalled ? 'wdk' : 'ethers';
+    this.walletMode = this.wdkInstalled ? 'wdk' : 'unavailable';
     this.config = {
       rpcUrl: config.rpcUrl || process.env.RPC_URL || 'https://eth.llamarpc.com',
       chainId: config.chainId || parseInt(process.env.CHAIN_ID || '1'),
-      mnemonic: config.mnemonic || process.env.WALLET_MNEMONIC
+      mnemonic: config.mnemonic || process.env.WALLET_MNEMONIC,
+      allowEthersFallback: Boolean(config.allowEthersFallback ?? (String(process.env.ALLOW_ETHERS_FALLBACK || '').toLowerCase() === 'true')),
+      persistGeneratedMnemonic: Boolean(config.persistGeneratedMnemonic ?? (String(process.env.ALLOW_WRITE_MNEMONIC || '').toLowerCase() === 'true'))
     };
     this.wallet = null;
   }
@@ -35,10 +37,13 @@ export class WalletManager {
   async initialize() {
     try {
       if (!EvmWallet) {
-        this.walletMode = 'ethers';
-        if (!this.config.mnemonic) {
-          throw new Error('WALLET_MNEMONIC is required when WDK is not available.');
+        if (!this.config.allowEthersFallback) {
+          throw new Error('WDK is required. Install @tetherto/wdk-evm or set ALLOW_ETHERS_FALLBACK=true (not recommended for judging).');
         }
+        if (!this.config.mnemonic) {
+          throw new Error('WALLET_MNEMONIC is required when using ethers fallback.');
+        }
+        this.walletMode = 'ethers';
         const provider = new ethers.JsonRpcProvider(this.config.rpcUrl, this.config.chainId);
         this.wallet = ethers.Wallet.fromPhrase(this.config.mnemonic).connect(provider);
         const mnemonicFingerprint = createHash('sha256').update(this.config.mnemonic).digest('hex').slice(0, 12);
@@ -59,15 +64,13 @@ export class WalletManager {
         const mnemonicFingerprint = createHash('sha256').update(mnemonic).digest('hex').slice(0, 12);
         this.log.warn('wallet.generate.mnemonic_created', { mnemonicFingerprint });
 
-        // Save to .env file
-        const envPath = join(__dirname, '..', '.env');
-        const envContent = fs.existsSync(envPath)
-          ? fs.readFileSync(envPath, 'utf8')
-          : '';
-
-        if (!envContent.includes('WALLET_MNEMONIC=')) {
-          fs.appendFileSync(envPath, `\nWALLET_MNEMONIC="${mnemonic}"\n`);
-          this.log.info('wallet.generate.mnemonic_saved', { envPath });
+        if (this.config.persistGeneratedMnemonic) {
+          const envPath = join(__dirname, '..', '..', '.env');
+          const envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
+          if (!envContent.includes('WALLET_MNEMONIC=')) {
+            fs.appendFileSync(envPath, `\nWALLET_MNEMONIC="${mnemonic}"\n`);
+            this.log.info('wallet.generate.mnemonic_saved', { envPath });
+          }
         }
       } else {
         this.walletMode = 'wdk';
@@ -103,14 +106,20 @@ export class WalletManager {
 
     try {
       if (!tokenAddress) {
-        // Get native ETH balance
-        const balance = await this.wallet.getBalance();
-        return { balance, symbol: 'ETH' };
-      } else {
-        // Get ERC-20 token balance
-        const balance = await this.wallet.getTokenBalance(tokenAddress);
-        return { balance, symbol: 'TOKEN' };
+        const address = await this.wallet.getAddress();
+        const provider = this.wallet?.provider || new ethers.JsonRpcProvider(this.config.rpcUrl, this.config.chainId);
+        const balance = await provider.getBalance(address);
+        return { balance: balance.toString(), symbol: 'ETH' };
       }
+      if (typeof this.wallet.getTokenBalance === 'function') {
+        const balance = await this.wallet.getTokenBalance(tokenAddress);
+        return { balance: String(balance), symbol: 'TOKEN' };
+      }
+      const provider = this.wallet?.provider || new ethers.JsonRpcProvider(this.config.rpcUrl, this.config.chainId);
+      const address = await this.wallet.getAddress();
+      const erc20 = new ethers.Contract(tokenAddress, ['function balanceOf(address) view returns (uint256)', 'function symbol() view returns (string)'], provider);
+      const [balance, symbol] = await Promise.all([erc20.balanceOf(address), erc20.symbol().catch(() => 'TOKEN')]);
+      return { balance: balance.toString(), symbol };
     } catch (error) {
       this.log.error('wallet.balance.error', { error: { name: error?.name, message: error?.message } });
       return { balance: '0', symbol: 'UNKNOWN' };
@@ -120,23 +129,18 @@ export class WalletManager {
   async sendTransaction(to, amount, tokenAddress = null) {
     if (!this.wallet) throw new Error('Wallet not initialized');
 
-    this.log.warn('wallet.tx.confirmation_required', { to, amount, tokenAddress: tokenAddress || 'ETH' });
-
-    // In production, implement proper user confirmation
-    // For demo, we'll simulate confirmation
-    const confirmed = await this.requestConfirmation();
-
-    if (!confirmed) {
-      this.log.warn('wallet.tx.cancelled');
-      return null;
-    }
-
     try {
       let tx;
       if (!tokenAddress) {
         tx = await this.wallet.sendTransaction({ to, value: amount });
       } else {
-        tx = await this.wallet.sendToken(tokenAddress, to, amount);
+        if (typeof this.wallet.sendToken === 'function') {
+          tx = await this.wallet.sendToken(tokenAddress, to, amount);
+        } else {
+          const signer = typeof this.wallet.getSigner === 'function' ? await this.wallet.getSigner() : this.wallet;
+          const erc20 = new ethers.Contract(tokenAddress, ['function transfer(address to, uint256 amount) returns (bool)'], signer);
+          tx = await erc20.transfer(to, amount);
+        }
       }
 
       this.log.info('wallet.tx.sent', { hash: tx?.hash, to, tokenAddress: tokenAddress || 'ETH' });
@@ -145,14 +149,6 @@ export class WalletManager {
       this.log.error('wallet.tx.error', { error: { name: error?.name, message: error?.message } });
       throw error;
     }
-  }
-
-  async requestConfirmation() {
-    // Simulate user confirmation - in production, use readline or UI
-    return new Promise((resolve) => {
-      process.stdin.once('data', () => resolve(true));
-      setTimeout(() => resolve(false), 30000); // 30s timeout
-    });
   }
 
   getAddress() {

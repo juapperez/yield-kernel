@@ -5,9 +5,12 @@ dotenv.config();
 import { WalletManager } from './wallet.js';
 import { DeFiManager } from './defi.js';
 import { RiskManager } from './risk.js';
+import { RiskEngine } from './risk-engine.js';
+import { StrategyEngine, StrategyType } from './strategy-engine.js';
 import { PortfolioMonitor } from '../services/monitor.js';
 import { AIProvider } from './ai-provider.js';
 import { createLogger } from '../utils/logger.js';
+import { PriceOracle } from '../utils/price-oracle.js';
 
 export class DeFiAgent {
   constructor() {
@@ -16,6 +19,9 @@ export class DeFiAgent {
     this.walletManager = null;
     this.defiManager = null;
     this.riskManager = null;
+    this.riskEngine = null;
+    this.strategyEngine = null;
+    this.priceOracle = null;
     this.monitor = null;
     this.conversationHistory = [];
   }
@@ -34,6 +40,14 @@ export class DeFiAgent {
     this.riskManager = new RiskManager();
 
     this.monitor = new PortfolioMonitor(this.defiManager, this.riskManager);
+
+    this.priceOracle = new PriceOracle({ chainId: this.defiManager.chainId, rpcUrl: this.defiManager.rpcUrl });
+    await this.priceOracle.initialize();
+
+    this.riskEngine = new RiskEngine({ priceOracle: this.priceOracle });
+    this.strategyEngine = new StrategyEngine({ protocolRegistry: this.defiManager.registry, priceOracle: this.priceOracle, riskEngine: this.riskEngine });
+    this.strategyEngine.setStrategy(StrategyType.BALANCED);
+    this.monitor.setIntegrations({ strategyEngine: this.strategyEngine, protocolRegistry: this.defiManager.registry, riskEngine: this.riskEngine, priceOracle: this.priceOracle });
 
     this.log.info('agent.initialize.ready', { walletReady: Boolean(this.walletManager?.wallet) });
   }
@@ -99,12 +113,12 @@ export class DeFiAgent {
         return message.content;
       }
     } catch (error) {
-      this.log.error('chat.error', { 
-        error: { 
-          name: error?.name, 
+      this.log.error('chat.error', {
+        error: {
+          name: error?.name,
           message: error?.message,
-          stack: error?.stack 
-        } 
+          stack: error?.stack
+        }
       });
       throw error; // Re-throw so server can see the actual error
     }
@@ -224,6 +238,8 @@ Be direct and action-oriented. Execute functions when requested.`;
         // Validate transaction
         const validation = this.riskManager.validateTransaction({
           amount: args.amount,
+          protocol: args.protocol,
+          asset: args.asset,
           userInput: JSON.stringify(args)
         });
 
@@ -232,7 +248,7 @@ Be direct and action-oriented. Execute functions when requested.`;
           return { error: 'Transaction validation failed', issues: validation.issues };
         }
 
-        return await this.defiManager.supplyToAave(args.asset, args.amount);
+        return await this.defiManager.supplyToProtocol(args.protocol, args.asset, args.amount);
 
       case 'start_monitoring':
         await this.monitor.startMonitoring(args.intervalMinutes || 5);
