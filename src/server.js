@@ -347,7 +347,20 @@ app.post('/api/invest', async (req, res) => {
     const { asset, amount } = req.body;
     req.log.info('invest.request', { asset, amount });
     
-    const prompt = `Assess the risk for supplying ${amount} ${asset} to Aave V3. If it's safe, I EXPLICITLY CONFIRM AND AUTHORIZE this write operation. YOU MUST trigger the 'supply_asset' function call immediately. Output your decision using the [OBSERVE] [ANALYZE] [ECONOMICS] [DECIDE] [REPORT] format.`;
+    // More explicit prompt that forces function calling
+    const prompt = `USER REQUEST: Supply ${amount} ${asset} to Aave V3.
+
+AUTHORIZATION: I explicitly authorize and confirm this transaction.
+
+INSTRUCTIONS:
+1. Call get_yields to check current opportunities
+2. Call assess_risk for ${asset} on Aave V3
+3. If risk is acceptable, IMMEDIATELY call supply_asset with:
+   - asset: "${asset}"
+   - amount: "${amount}"
+   - protocol: "aave-v3"
+
+DO NOT just describe what you would do. EXECUTE the supply_asset function now.`;
 
     // Reset history to prevent memory leak and context pollution across requests
     agent.conversationHistory = [];
@@ -383,7 +396,7 @@ app.post('/api/invest', async (req, res) => {
     } else {
       req.log.warn('invest.refused', { asset, amount, aiResponse, historyLength: history.length });
       res.json({ 
-        error: 'AI refused to execute or found risks.', 
+        error: 'AI did not execute the transaction. It may have found risks or the function was not called.', 
         ai_response: aiResponse,
         debug: {
           historyLength: history.length,
