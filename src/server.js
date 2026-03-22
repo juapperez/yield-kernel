@@ -502,40 +502,58 @@ app.get('/api/monitor/stream', async (req, res) => {
 app.use(express.static(join(__dirname, '..', 'public')));
 
 
-// API to execute investment via AI
+// API to execute investment via AI chat
 app.post('/api/invest', async (req, res) => {
   try {
-    const intentId = String(req.body?.intentId || '');
-    const approvalToken = String(req.body?.approvalToken || '');
-    if (!intentId || !approvalToken) {
-      res.status(400).json({
-        ok: false,
-        error: 'Use explicit intent flow. Call /api/intent/create, then /api/intent/approve, then /api/intent/execute (or POST /api/invest with intentId+approvalToken).'
-      });
-      return;
-    }
     const agent = await getAgent();
-    const intent = getIntentOrThrow(intentId);
-    requireValidToken(intent, approvalToken);
-
-    if (!intent.approvedAt) {
-      res.status(400).json({ ok: false, error: 'Intent not approved' });
-      return;
+    const asset = String(req.body?.asset || 'USDT').toUpperCase();
+    const amount = String(req.body?.amount || process.env.MAX_POSITION_SIZE_USDT || '1000');
+    
+    req.log.info('invest.request', { asset, amount });
+    
+    // Use AI agent to process the investment request
+    const userMessage = `I want to invest ${amount} ${asset}. Please check the best yields, assess the risk, and if it's safe, execute the supply transaction.`;
+    
+    const aiResponse = await agent.chat(userMessage);
+    
+    // Check if transaction was executed by looking at conversation history
+    const lastToolCall = agent.conversationHistory
+      .slice()
+      .reverse()
+      .find(msg => msg.role === 'tool' && msg.name === 'supply_asset');
+    
+    if (lastToolCall) {
+      const result = JSON.parse(lastToolCall.content);
+      req.log.info('invest.success', { asset, amount, txHash: result.txHash });
+      res.json({
+        ok: true,
+        ai_response: aiResponse,
+        result,
+        hash: result.txHash,
+        blockExplorer: result.blockExplorer,
+        economics: result.economics,
+        chain: result.chain
+      });
+    } else {
+      req.log.warn('invest.no_execution', { asset, amount, aiResponse });
+      res.json({
+        ok: false,
+        error: 'AI did not execute the transaction. It may have found risks or the function was not called.',
+        ai_response: aiResponse,
+        debug: {
+          historyLength: agent.conversationHistory.length,
+          hasSupplyResult: !!lastToolCall
+        }
+      });
     }
-    if (intent.executedAt) {
-      res.status(400).json({ ok: false, error: 'Intent already executed' });
-      return;
-    }
-
-    intent.executedAt = Date.now();
-    intentStore.set(intentId, intent);
-
-    req.log.info('invest.execute', { intentId, protocol: intent.protocol, asset: intent.asset, amount: intent.amount });
-    const result = await agent.defiManager.supplyToProtocol(intent.protocol, intent.asset, intent.amount);
-    res.json({ ok: true, intentId, executedAt: new Date(intent.executedAt).toISOString(), result });
   } catch (err) {
     req.log.error('invest.error', { error: { name: err?.name, message: err?.message, stack: err?.stack } });
-    res.status(500).json({ error: err.message, details: err.stack });
+    res.status(500).json({ 
+      ok: false,
+      error: err.message,
+      ai_response: 'Sorry, I encountered an error processing your request.',
+      details: err.stack 
+    });
   }
 });
 

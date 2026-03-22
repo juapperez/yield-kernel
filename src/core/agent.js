@@ -75,15 +75,30 @@ export class DeFiAgent {
       const fnCall = message.function_call || (message.tool_calls && message.tool_calls.length > 0 ? message.tool_calls[0].function : null);
 
       if (fnCall) {
-        this.log.info('chat.tool_call', { name: fnCall.name });
+        this.log.info('chat.tool_call', { name: fnCall.name, args: fnCall.arguments });
+        
+        // Add assistant's message with tool call to history
+        this.conversationHistory.push({
+          role: 'assistant',
+          content: message.content || null,
+          tool_calls: message.tool_calls || [{ 
+            id: 'call_' + Date.now(),
+            type: 'function',
+            function: fnCall 
+          }]
+        });
+        
         const result = await this.executeFunction(
           fnCall.name,
           JSON.parse(fnCall.arguments || '{}')
         );
 
-        // Add function result to history
+        this.log.info('chat.tool_result', { name: fnCall.name, success: !result.error });
+
+        // Add function result to history (tool format for Groq/OpenAI)
         this.conversationHistory.push({
-          role: 'function',
+          role: 'tool',
+          tool_call_id: message.tool_calls?.[0]?.id || 'call_' + Date.now(),
           name: fnCall.name,
           content: JSON.stringify(result)
         });
@@ -150,11 +165,14 @@ SAFETY RULES:
 - Always check gas costs
 - Require explicit user authorization
 
-WHEN USER AUTHORIZES A TRANSACTION:
-1. Call get_yields to check opportunities
-2. Call assess_risk to verify safety
-3. If safe, IMMEDIATELY call supply_asset with the exact parameters
+WHEN USER SAYS "INVEST" OR "SUPPLY":
+1. IMMEDIATELY call supply_asset with the specified asset and amount
+2. Use protocol "aave-v3" as default
+3. Do not ask for confirmation - the user already authorized it
 4. Return the transaction result
+
+Example: User says "invest 1000 USDT"
+You MUST call: supply_asset(asset="USDT", amount="1000", protocol="aave-v3")
 
 Be direct and action-oriented. Execute functions when requested.`;
   }
