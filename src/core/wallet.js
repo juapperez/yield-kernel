@@ -40,9 +40,15 @@ export class WalletManager {
         if (!this.config.allowEthersFallback) {
           throw new Error('WDK is required. Install @tetherto/wdk-evm or set ALLOW_ETHERS_FALLBACK=true (not recommended for judging).');
         }
+        
+        // If no mnemonic, generate one
         if (!this.config.mnemonic) {
-          throw new Error('WALLET_MNEMONIC is required when using ethers fallback.');
+          this.walletMode = 'ethers-generated';
+          const randomWallet = ethers.Wallet.createRandom();
+          this.config.mnemonic = randomWallet.mnemonic.phrase;
+          this.log.info('wallet.generate.random', { address: randomWallet.address });
         }
+        
         this.walletMode = 'ethers';
         const provider = new ethers.JsonRpcProvider(this.config.rpcUrl, this.config.chainId);
         this.wallet = ethers.Wallet.fromPhrase(this.config.mnemonic).connect(provider);
@@ -65,7 +71,7 @@ export class WalletManager {
         this.log.warn('wallet.generate.mnemonic_created', { mnemonicFingerprint });
 
         if (this.config.persistGeneratedMnemonic) {
-          const envPath = join(__dirname, '..', '..', '.env');
+          const envPath = join(__dirname, '...', '..', '.env');
           const envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
           if (!envContent.includes('WALLET_MNEMONIC=')) {
             fs.appendFileSync(envPath, `\nWALLET_MNEMONIC="${mnemonic}"\n`);
