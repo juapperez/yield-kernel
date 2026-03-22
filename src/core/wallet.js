@@ -35,68 +35,50 @@ export class WalletManager {
   }
 
   async initialize() {
-    try {
-      if (!EvmWallet) {
-        if (!this.config.allowEthersFallback) {
-          throw new Error('WDK is required. Install @tetherto/wdk-evm or set ALLOW_ETHERS_FALLBACK=true (not recommended for judging).');
+      try {
+        if (!EvmWallet) {
+          throw new Error('WDK not available');
         }
-        
-        // If no mnemonic, generate one
+
         if (!this.config.mnemonic) {
-          this.walletMode = 'ethers-generated';
-          const randomWallet = ethers.Wallet.createRandom();
-          this.config.mnemonic = randomWallet.mnemonic.phrase;
-          this.log.info('wallet.generate.random', { address: randomWallet.address });
-        }
-        
-        this.walletMode = 'ethers';
-        const provider = new ethers.JsonRpcProvider(this.config.rpcUrl, this.config.chainId);
-        this.wallet = ethers.Wallet.fromPhrase(this.config.mnemonic).connect(provider);
-        const mnemonicFingerprint = createHash('sha256').update(this.config.mnemonic).digest('hex').slice(0, 12);
-        const address = await this.wallet.getAddress();
-        this.log.warn('wallet.fallback.ethers', { mnemonicFingerprint, address, chainId: this.config.chainId, rpcUrl: this.config.rpcUrl });
-        return this.wallet;
-      }
+          this.walletMode = 'wdk';
+          this.log.info('wallet.generate.start', { chainId: this.config.chainId });
+          this.wallet = await EvmWallet.create({
+            rpcUrl: this.config.rpcUrl,
+            chainId: this.config.chainId
+          });
 
-      if (!this.config.mnemonic) {
-        this.walletMode = 'wdk';
-        this.log.info('wallet.generate.start', { chainId: this.config.chainId });
-        this.wallet = await EvmWallet.create({
-          rpcUrl: this.config.rpcUrl,
-          chainId: this.config.chainId
-        });
+          const mnemonic = this.wallet.getMnemonic();
+          const mnemonicFingerprint = createHash('sha256').update(mnemonic).digest('hex').slice(0, 12);
+          this.log.warn('wallet.generate.mnemonic_created', { mnemonicFingerprint });
 
-        const mnemonic = this.wallet.getMnemonic();
-        const mnemonicFingerprint = createHash('sha256').update(mnemonic).digest('hex').slice(0, 12);
-        this.log.warn('wallet.generate.mnemonic_created', { mnemonicFingerprint });
-
-        if (this.config.persistGeneratedMnemonic) {
-          const envPath = join(__dirname, '...', '..', '.env');
-          const envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
-          if (!envContent.includes('WALLET_MNEMONIC=')) {
-            fs.appendFileSync(envPath, `\nWALLET_MNEMONIC="${mnemonic}"\n`);
-            this.log.info('wallet.generate.mnemonic_saved', { envPath });
+          if (this.config.persistGeneratedMnemonic) {
+            const envPath = join(__dirname, '..', '..', '.env');
+            const envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
+            if (!envContent.includes('WALLET_MNEMONIC=')) {
+              fs.appendFileSync(envPath, `\nWALLET_MNEMONIC="${mnemonic}"\n`);
+              this.log.info('wallet.generate.mnemonic_saved', { envPath });
+            }
           }
+        } else {
+          this.walletMode = 'wdk';
+          this.wallet = await EvmWallet.fromMnemonic(this.config.mnemonic, {
+            rpcUrl: this.config.rpcUrl,
+            chainId: this.config.chainId
+          });
+          const mnemonicFingerprint = createHash('sha256').update(this.config.mnemonic).digest('hex').slice(0, 12);
+          this.log.info('wallet.load.mnemonic', { mnemonicFingerprint, chainId: this.config.chainId });
         }
-      } else {
-        this.walletMode = 'wdk';
-        this.wallet = await EvmWallet.fromMnemonic(this.config.mnemonic, {
-          rpcUrl: this.config.rpcUrl,
-          chainId: this.config.chainId
-        });
-        const mnemonicFingerprint = createHash('sha256').update(this.config.mnemonic).digest('hex').slice(0, 12);
-        this.log.info('wallet.load.mnemonic', { mnemonicFingerprint, chainId: this.config.chainId });
+
+        const address = await this.wallet.getAddress();
+        this.log.info('wallet.ready', { address, chainId: this.config.chainId, rpcUrl: this.config.rpcUrl });
+
+        return this.wallet;
+      } catch (error) {
+        this.log.error('wallet.init.error', { error: { name: error?.name, message: error?.message } });
+        throw error;
       }
-
-      const address = await this.wallet.getAddress();
-      this.log.info('wallet.ready', { address, chainId: this.config.chainId, rpcUrl: this.config.rpcUrl });
-
-      return this.wallet;
-    } catch (error) {
-      this.log.error('wallet.init.error', { error: { name: error?.name, message: error?.message } });
-      throw error;
     }
-  }
 
   getRuntimeStatus() {
     return {
