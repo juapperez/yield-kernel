@@ -725,4 +725,299 @@ export class PortfolioCalculator {
       timestamp: Date.now()
     };
   }
+
+  /**
+   * Calculate optimal leverage ratio for a position
+   * 
+   * Requirements: 7.5, 12.2, 12.6
+   * 
+   * @param {Object} params - Leverage calculation parameters
+   * @param {number} params.supplyAPY - Supply APY (as percentage, e.g., 5 for 5%)
+   * @param {number} params.borrowAPY - Borrow APY (as percentage, e.g., 3 for 3%)
+   * @param {number} params.maxLeverage - Maximum allowed leverage (e.g., 3 for 3x)
+   * @param {number} params.targetHealthFactor - Target health factor (default: 2.0)
+   * @param {number} params.minHealthFactor - Minimum health factor (default: 1.8)
+   * @param {number} params.liquidationThreshold - Liquidation threshold (default: 0.85)
+   * @param {number} params.collateralPrice - Current collateral price (optional, for liquidation calc)
+   * @returns {Object} Optimal leverage analysis
+   */
+  calculateOptimalLeverage(params) {
+    const {
+      supplyAPY,
+      borrowAPY,
+      maxLeverage = 3.0,
+      targetHealthFactor = 2.0,
+      minHealthFactor = 1.8,
+      liquidationThreshold = 0.85,
+      collateralPrice = null
+    } = params;
+
+    // Validate inputs
+    if (supplyAPY === undefined || borrowAPY === undefined) {
+      throw new Error('supplyAPY and borrowAPY are required');
+    }
+
+    if (maxLeverage < 1.0) {
+      throw new Error('maxLeverage must be >= 1.0');
+    }
+
+    if (targetHealthFactor < minHealthFactor) {
+      throw new Error('targetHealthFactor must be >= minHealthFactor');
+    }
+
+    // Calculate spread (supply APY - borrow APY)
+    const spread = supplyAPY - borrowAPY;
+
+    // Only use leverage when spread is positive
+    if (spread <= 0) {
+      return {
+        optimalLeverage: 1.0,
+        leveragedAPY: supplyAPY,
+        baseAPY: supplyAPY,
+        borrowAPY,
+        spread,
+        apyImprovement: 0,
+        recommendation: 'no_leverage',
+        reason: 'Negative or zero spread - borrowing costs exceed supply returns',
+        healthFactor: Infinity,
+        liquidationPrice: null,
+        liquidationPriceDropPercentage: null,
+        riskLevel: 'none',
+        timestamp: Date.now()
+      };
+    }
+
+    // Calculate max leverage based on target health factor
+    // Health Factor = (Collateral * Liquidation Threshold) / Borrowed
+    // For leverage L: Borrowed = Collateral * (L - 1)
+    // HF = (Collateral * LT) / (Collateral * (L - 1))
+    // HF = LT / (L - 1)
+    // L = (LT / HF) + 1
+    const maxLeverageByTargetHealth = (liquidationThreshold / targetHealthFactor) + 1;
+    const maxLeverageByMinHealth = (liquidationThreshold / minHealthFactor) + 1;
+
+    // Take minimum of user max and health factor constraints
+    const safeLeverage = Math.min(maxLeverage, maxLeverageByTargetHealth);
+
+    // Ensure we don't exceed minimum health factor
+    const absoluteMaxLeverage = Math.min(safeLeverage, maxLeverageByMinHealth);
+
+    // Calculate leveraged APY for optimal leverage
+    // Formula: Leveraged APY = (Supply APY × Leverage) - (Borrow APY × (Leverage - 1))
+    // Simplified: Leveraged APY = Supply APY + (Leverage - 1) × (Supply APY - Borrow APY)
+    const leveragedAPY = supplyAPY + (absoluteMaxLeverage - 1) * spread;
+
+    // Calculate health factor at optimal leverage
+    const healthFactor = liquidationThreshold / (absoluteMaxLeverage - 1);
+
+    // Calculate liquidation price if collateral price provided
+    let liquidationPrice = null;
+    let liquidationPriceDropPercentage = null;
+    
+    if (collateralPrice !== null && absoluteMaxLeverage > 1.0) {
+      // Liquidation occurs when: (Collateral Value * LT) / Borrowed Value = 1
+      // At leverage L: Borrowed = Collateral * (L - 1)
+      // Liquidation price = Current Price * (L - 1) / (L * LT)
+      liquidationPrice = collateralPrice * (absoluteMaxLeverage - 1) / (absoluteMaxLeverage * liquidationThreshold);
+      liquidationPriceDropPercentage = ((collateralPrice - liquidationPrice) / collateralPrice) * 100;
+    }
+
+    // Determine risk level based on health factor
+    let riskLevel;
+    if (healthFactor >= 2.5) {
+      riskLevel = 'low';
+    } else if (healthFactor >= 2.0) {
+      riskLevel = 'medium';
+    } else if (healthFactor >= 1.8) {
+      riskLevel = 'high';
+    } else {
+      riskLevel = 'critical';
+    }
+
+    // Generate recommendation
+    let recommendation;
+    let reason;
+
+    if (absoluteMaxLeverage <= 1.0) {
+      recommendation = 'no_leverage';
+      reason = 'Health factor constraints prevent safe leverage';
+    } else if (spread < 1.0) {
+      recommendation = 'low_leverage';
+      reason = 'Small spread - use conservative leverage';
+    } else if (spread >= 3.0 && healthFactor >= 2.0) {
+      recommendation = 'optimal_leverage';
+      reason = 'Good spread and safe health factor - leverage recommended';
+    } else if (spread >= 1.0 && healthFactor >= 1.8) {
+      recommendation = 'moderate_leverage';
+      reason = 'Moderate spread - use leverage cautiously';
+    } else {
+      recommendation = 'low_leverage';
+      reason = 'Limited spread or health factor constraints';
+    }
+
+    return {
+      optimalLeverage: absoluteMaxLeverage,
+      leveragedAPY,
+      baseAPY: supplyAPY,
+      borrowAPY,
+      spread,
+      apyImprovement: leveragedAPY - supplyAPY,
+      healthFactor,
+      targetHealthFactor,
+      minHealthFactor,
+      liquidationThreshold,
+      liquidationPrice,
+      liquidationPriceDropPercentage,
+      riskLevel,
+      recommendation,
+      reason,
+      maxLeverageByUser: maxLeverage,
+      maxLeverageByTargetHealth,
+      maxLeverageByMinHealth,
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Calculate leveraged APY for a given leverage ratio
+   * 
+   * Requirements: 12.6
+   * 
+   * @param {number} supplyAPY - Supply APY (as percentage)
+   * @param {number} borrowAPY - Borrow APY (as percentage)
+   * @param {number} leverage - Leverage ratio (e.g., 2 for 2x)
+   * @returns {Object} Leveraged APY calculation
+   */
+  calculateLeveragedAPY(supplyAPY, borrowAPY, leverage) {
+    if (leverage < 1.0) {
+      throw new Error('Leverage must be >= 1.0');
+    }
+
+    // Formula: Leveraged APY = (Supply APY × Leverage) - (Borrow APY × (Leverage - 1))
+    const leveragedAPY = (supplyAPY * leverage) - (borrowAPY * (leverage - 1));
+    const spread = supplyAPY - borrowAPY;
+    const apyImprovement = leveragedAPY - supplyAPY;
+
+    return {
+      leveragedAPY,
+      baseAPY: supplyAPY,
+      borrowAPY,
+      leverage,
+      spread,
+      apyImprovement,
+      isProfitable: leveragedAPY > supplyAPY,
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Calculate liquidation price for a leveraged position
+   * 
+   * Requirements: 12.5
+   * 
+   * @param {Object} params - Liquidation calculation parameters
+   * @param {number} params.collateralAmount - Amount of collateral
+   * @param {number} params.collateralPrice - Current collateral price
+   * @param {number} params.borrowedAmount - Amount borrowed (in same units as collateral value)
+   * @param {number} params.liquidationThreshold - Liquidation threshold (e.g., 0.85)
+   * @returns {Object} Liquidation price analysis
+   */
+  calculateLiquidationPrice(params) {
+    const {
+      collateralAmount,
+      collateralPrice,
+      borrowedAmount,
+      liquidationThreshold = 0.85
+    } = params;
+
+    if (!collateralAmount || !collateralPrice || !borrowedAmount) {
+      throw new Error('collateralAmount, collateralPrice, and borrowedAmount are required');
+    }
+
+    const collateralValue = collateralAmount * collateralPrice;
+
+    // Calculate current health factor
+    const currentHealthFactor = (collateralValue * liquidationThreshold) / borrowedAmount;
+
+    // Calculate liquidation price
+    // At liquidation: (Collateral Amount × Liquidation Price × LT) = Borrowed Amount
+    // Liquidation Price = Borrowed Amount / (Collateral Amount × LT)
+    const liquidationPrice = borrowedAmount / (collateralAmount * liquidationThreshold);
+
+    // Calculate price drop percentage to liquidation
+    const priceDropToLiquidation = collateralPrice - liquidationPrice;
+    const priceDropPercentage = (priceDropToLiquidation / collateralPrice) * 100;
+
+    // Calculate leverage ratio
+    const leverage = collateralValue / (collateralValue - borrowedAmount);
+
+    return {
+      liquidationPrice,
+      currentPrice: collateralPrice,
+      priceDropToLiquidation,
+      priceDropPercentage,
+      healthFactor: currentHealthFactor,
+      leverage,
+      collateralValue,
+      borrowedAmount,
+      liquidationThreshold,
+      isAtRisk: currentHealthFactor < 1.5,
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Analyze multiple leverage scenarios
+   * 
+   * Requirements: 7.5, 12.2
+   * 
+   * @param {Object} params - Base parameters
+   * @param {Array} leverageRatios - Array of leverage ratios to analyze
+   * @returns {Array} Array of leverage scenario analyses
+   */
+  analyzeLeverageScenarios(params, leverageRatios = [1.0, 1.5, 2.0, 2.5, 3.0]) {
+    const scenarios = [];
+
+    for (const leverage of leverageRatios) {
+      // Calculate leveraged APY
+      const apyResult = this.calculateLeveragedAPY(
+        params.supplyAPY,
+        params.borrowAPY,
+        leverage
+      );
+
+      // Calculate health factor
+      const liquidationThreshold = params.liquidationThreshold || 0.85;
+      const healthFactor = leverage > 1.0 
+        ? liquidationThreshold / (leverage - 1)
+        : Infinity;
+
+      // Calculate liquidation price if collateral price provided
+      let liquidationPrice = null;
+      let priceDropPercentage = null;
+      
+      if (params.collateralPrice && leverage > 1.0) {
+        liquidationPrice = params.collateralPrice * (leverage - 1) / (leverage * liquidationThreshold);
+        priceDropPercentage = ((params.collateralPrice - liquidationPrice) / params.collateralPrice) * 100;
+      }
+
+      // Determine if this scenario is safe
+      const minHealthFactor = params.minHealthFactor || 1.8;
+      const isSafe = healthFactor >= minHealthFactor;
+
+      scenarios.push({
+        leverage,
+        ...apyResult,
+        healthFactor,
+        liquidationPrice,
+        priceDropPercentage,
+        isSafe,
+        riskLevel: healthFactor >= 2.5 ? 'low' : 
+                   healthFactor >= 2.0 ? 'medium' : 
+                   healthFactor >= 1.8 ? 'high' : 'critical'
+      });
+    }
+
+    return scenarios;
+  }
 }

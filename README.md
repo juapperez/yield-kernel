@@ -2,15 +2,10 @@
 
 YieldKernel is a high-performance, self-custodial autonomous agent designed for institutional-grade DeFi yield optimization. Built on top of Tether's **Wallet Development Kit (WDK)** and powered by Groq's low-latency LPU inference, YieldKernel automates complex capital allocation across leading lending protocols while maintaining absolute user sovereignty.
 
-Live Application: https://yieldkernel-app.web.app  
-Backend API: https://yieldkernel-backend.onrender.com  
-GitHub: https://github.com/juapperez/yield-kernel
-
 Judge Mode (one-click transcript): `POST /api/judge/run`  
 On-chain Proof TX (testnet): `POST /api/proof/tx`  
 Autonomy Stream (SSE): `GET /api/monitor/stream`
 
-Submission note: the DoraHacks listing requires a demo video for submission.
 
 ---
 
