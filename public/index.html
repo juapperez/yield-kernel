@@ -932,6 +932,9 @@
             }
         }
     </style>
+    
+    <!-- Ethers.js for blockchain interaction -->
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
 </head>
 
 <body>
@@ -1303,38 +1306,25 @@
 
             const API_BASE = new URLSearchParams(window.location.search).get('api') || '';
 
-            // Real Network Status Check
+            // Blockchain Network Status Check - checks Ethereum mainnet directly
             async function updateNetworkStatus() {
                 const statusText = document.getElementById('status-text');
                 const statusDot = document.getElementById('status-dot');
-                const recheckCycleText = document.getElementById('recheck-cycle-text');
 
                 try {
-                    const response = await fetch(`${API_BASE}/api/status`, {
-                        headers: {
-                            'Bypass-Tunnel-Reminder': 'true'
-                        }
-                    });
-                    const data = await response.json();
-
-                    if (data.recheck_cycle && recheckCycleText) {
-                        recheckCycleText.innerText = `${data.recheck_cycle} RECHECK CYCLE`;
-                    }
-
-                    const wdkMode = data.wdk && data.wdk.walletMode ? String(data.wdk.walletMode).toUpperCase() : '';
-
-                    if (data.status === 'operational') {
-                        statusText.innerText = wdkMode ? `Network Active / ${wdkMode}` : 'Network Active';
+                    // Check Ethereum mainnet directly via public RPC
+                    const provider = new ethers.JsonRpcProvider('https://eth.llamarpc.com');
+                    const blockNumber = await provider.getBlockNumber();
+                    const network = await provider.getNetwork();
+                    
+                    if (blockNumber && blockNumber > 0) {
+                        statusText.innerText = `Ethereum Active / Block ${blockNumber.toLocaleString()}`;
                         statusDot.style.background = '#00ff00';
                         statusDot.style.boxShadow = '0 0 8px #00ff00';
-                    } else if (data.status === 'degraded') {
-                        statusText.innerText = wdkMode ? `Network Degraded / ${wdkMode}` : 'Network Degraded';
+                    } else {
+                        statusText.innerText = 'Network Degraded';
                         statusDot.style.background = '#ffaa00';
                         statusDot.style.boxShadow = '0 0 8px #ffaa00';
-                    } else {
-                        statusText.innerText = wdkMode ? `Network Offline / ${wdkMode}` : 'Network Offline';
-                        statusDot.style.background = '#ff4444';
-                        statusDot.style.boxShadow = '0 0 8px #ff4444';
                     }
                 } catch (err) {
                     statusText.innerText = 'Network Offline';
@@ -1342,7 +1332,7 @@
                     statusDot.style.boxShadow = '0 0 8px #ff4444';
                 }
             }
-            setInterval(updateNetworkStatus, 10000);
+            setInterval(updateNetworkStatus, 15000); // Check every 15 seconds
             updateNetworkStatus();
 
             // Reveal on Scroll
