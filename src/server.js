@@ -41,9 +41,14 @@ let agentInstance = null;
 async function getAgent() {
   if (!agentInstance) {
     log.info('agent.init.start');
-    agentInstance = new DeFiAgent();
-    await agentInstance.initialize();
-    log.info('agent.init.ready');
+    try {
+      agentInstance = new DeFiAgent();
+      await agentInstance.initialize();
+      log.info('agent.init.ready');
+    } catch (error) {
+      log.error('agent.init.failed', { error: { name: error?.name, message: error?.message, stack: error?.stack } });
+      throw error;
+    }
   }
   return agentInstance;
 }
@@ -506,6 +511,12 @@ app.use(express.static(join(__dirname, '..', 'public')));
 app.post('/api/invest', async (req, res) => {
   try {
     const agent = await getAgent();
+    
+    // Verify agent is properly initialized
+    if (!agent.defiManager) {
+      throw new Error('DeFi manager not initialized. Check wallet and RPC configuration.');
+    }
+    
     const asset = String(req.body?.asset || 'USDT').toUpperCase();
     const amount = String(req.body?.amount || process.env.MAX_POSITION_SIZE_USDT || '1000');
     
@@ -551,8 +562,8 @@ app.post('/api/invest', async (req, res) => {
     res.status(500).json({ 
       ok: false,
       error: err.message,
-      ai_response: 'Sorry, I encountered an error processing your request.',
-      details: err.stack 
+      ai_response: `Error: ${err.message}`,
+      details: err.message
     });
   }
 });
