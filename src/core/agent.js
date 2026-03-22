@@ -29,6 +29,7 @@ export class DeFiAgent {
     await this.walletManager.initialize();
 
     this.defiManager = new DeFiManager(this.walletManager.wallet);
+    await this.defiManager.initialize();
 
     this.riskManager = new RiskManager();
 
@@ -200,16 +201,19 @@ FUNCTIONS:
 
     switch (name) {
       case 'get_portfolio':
-        return await this.defiManager.getAavePositions();
+        return await this.defiManager.getPortfolio();
 
       case 'get_yields':
         return await this.defiManager.getAvailableYields();
 
       case 'assess_risk':
         const yields = await this.defiManager.getAvailableYields();
-        const opportunity = yields.find(
-          y => y.protocol === args.protocol && y.asset === args.asset
-        );
+        const protocol = String(args.protocol || '').toLowerCase();
+        const asset = String(args.asset || '').toUpperCase();
+        const opportunity =
+          yields.find(y => String(y.protocol || '').toLowerCase() === protocol && String(y.asset || '').toUpperCase() === asset) ||
+          yields.find(y => String(y.asset || '').toUpperCase() === asset) ||
+          null;
         return this.riskManager.assessYieldOpportunity(opportunity);
 
       case 'supply_asset':

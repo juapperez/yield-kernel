@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { ethers } from 'ethers';
 import { DeFiAgent } from './core/agent.js';
 import { onRequest } from 'firebase-functions/v2/https';
 import 'dotenv/config';
@@ -11,7 +12,25 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-app.use(cors());
+
+// Robust CORS configuration for Render / Railway backends communicating with Firebase frontend
+const corsOptions = {
+  origin: [
+    'https://yieldkernel-app.web.app',
+    'https://yieldkernel.firebaseapp.com',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    '*' // Allow all as fallback
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Bypass-Tunnel-Reminder', 'Origin', 'Accept'],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
+
 app.use(express.json());
 
 const log = createLogger({ service: 'yieldkernel-api' });
@@ -47,15 +66,6 @@ function explorerTxUrl(chainId, txHash) {
 
 async function tryProofTransaction(agent, req) {
   const status = agent.walletManager.getRuntimeStatus();
-  if (!status.wdkInstalled || status.walletMode !== 'wdk') {
-    return {
-      ok: false,
-      mode: status.walletMode,
-      reason: 'wdk_not_active',
-      chainId: status.chainId
-    };
-  }
-
   const wallet = agent.walletManager.wallet;
   if (!wallet || typeof wallet.sendTransaction !== 'function') {
     return { ok: false, mode: status.walletMode, reason: 'wallet_sendTransaction_unavailable', chainId: status.chainId };
@@ -84,20 +94,29 @@ async function tryProofTransaction(agent, req) {
 app.get('/api/status', async (req, res) => {
   try {
     const agent = await getAgent();
+    const wdk = agent.walletManager.getRuntimeStatus();
     const address = await agent.walletManager.wallet.getAddress();
-    const isReady = !!address;
-    req.log.info('status.check', { isReady, addressPresent: Boolean(address) });
+    const addressPresent = Boolean(address);
+
+    const provider = new ethers.JsonRpcProvider(wdk.rpcUrl, wdk.chainId);
+    const start = Date.now();
+    const blockNumber = await provider.getBlockNumber();
+    const latencyMs = Date.now() - start;
+
+    const isReady = addressPresent && Number.isFinite(blockNumber);
+    req.log.info('status.check', { isReady, addressPresent, chainId: wdk.chainId, blockNumber });
     res.json({
       status: isReady ? 'operational' : 'degraded',
       network: 'Ethereum Mainnet',
-      latency: Math.floor(Math.random() * 40) + 10 + 'ms',
+      latency: `${latencyMs}ms`,
       recheck_cycle: '86400s',
-      address: address,
-      wdk: agent.walletManager.getRuntimeStatus()
+      address: address ? `${address.slice(0, 6)}...${address.slice(-4)}` : null,
+      blockNumber,
+      wdk
     });
   } catch (err) {
     req.log.error('status.error', { error: { name: err?.name, message: err?.message } });
-    res.status(500).json({ status: 'offline', error: err.message });
+    res.status(200).json({ status: 'offline', error: err.message });
   }
 });
 
@@ -133,7 +152,7 @@ app.post('/api/judge/run', async (req, res) => {
   try {
     const agent = await getAgent();
 
-    const asset = String(req.body?.asset || 'USDT').toUpperCase();
+    const asset = String(req.body?.asset || 'USDC').toUpperCase();
     const amount = String(req.body?.amount || process.env.MAX_POSITION_SIZE_USDT || '1000');
     const execute = Boolean(req.body?.execute);
     const requireOnchainProof = Boolean(req.body?.requireOnchainProof);
@@ -230,10 +249,30 @@ app.get('/api/yields', async (req, res) => {
   try {
     const agent = await getAgent();
     const yields = await agent.defiManager.getAvailableYields();
-    req.log.info('yields.get', { count: Array.isArray(yields) ? yields.length : 0 });
-    res.json(yields);
+    const enriched = (Array.isArray(yields) ? yields : []).map((y) => {
+      const risk = agent.riskManager.assessYieldOpportunity(y);
+      return {
+        ...y,
+        riskScore: risk?.score?.total ?? null,
+        riskRecommendation: risk?.recommendation ?? null
+      };
+    });
+    req.log.info('yields.get', { count: enriched.length });
+    res.json(enriched);
   } catch (err) {
     req.log.error('yields.error', { error: { name: err?.name, message: err?.message } });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/portfolio', async (req, res) => {
+  try {
+    const agent = await getAgent();
+    const portfolio = await agent.defiManager.getPortfolio();
+    req.log.info('portfolio.get', { positions: Array.isArray(portfolio?.positions) ? portfolio.positions.length : 0 });
+    res.json(portfolio);
+  } catch (err) {
+    req.log.error('portfolio.error', { error: { name: err?.name, message: err?.message } });
     res.status(500).json({ error: err.message });
   }
 });
@@ -255,14 +294,18 @@ app.get('/api/monitor/stream', async (req, res) => {
       cycle++;
       const yields = await agent.defiManager.getAvailableYields();
       const best = yields.sort((a, b) => b.supplyAPY - a.supplyAPY)[0];
-      const gasEst = await agent.defiManager.estimateGas('supply', {});
-      const netYield = (parseFloat(best.supplyAPY) - (parseFloat(gasEst.estimatedCostUSD) / (1000 * parseFloat(best.supplyAPY) / 100))).toFixed(3);
+      const risk = agent.riskManager.assessYieldOpportunity(best);
+      const gasEst = await agent.defiManager.estimateGas('supply', { protocol: 'aave-v3', asset: best.asset, amount: String(process.env.MAX_POSITION_SIZE_USDT || 1000) });
+      const gasUsd = gasEst.estimatedCostUSD ? Number(gasEst.estimatedCostUSD) : null;
+      const netYield = gasUsd
+        ? (parseFloat(best.supplyAPY) - (gasUsd / (1000 * parseFloat(best.supplyAPY) / 100))).toFixed(3)
+        : null;
 
       const decisions = [
-        `[OBSERVE] Cycle #${cycle}: Scanning ${yields.length} yield opportunities across Aave V3`,
-        `[ANALYZE] Best opportunity: ${best.asset} at ${best.supplyAPY}% APY | Liquidity: ${best.liquidityUSD} | Risk Score: ${best.riskScore}/100`,
-        `[ECONOMICS] Gas estimate: $${gasEst.estimatedCostUSD} | Net APY after gas: ${netYield}% | Position viable: ${netYield > 0 ? 'YES' : 'NO'}`,
-        `[DECIDE] ${netYield > 0 ? `HOLD - current allocation is optimal. No rebalance needed` : 'SKIP - gas cost exceeds yield for current position size'}`,
+        `[OBSERVE] Cycle #${cycle}: Scanning ${yields.length} yield opportunities across protocols`,
+        `[ANALYZE] Best opportunity: ${best.protocol} ${best.asset} at ${best.supplyAPY}% APY | Risk Score: ${risk.score.total}/100`,
+        `[ECONOMICS] Gas estimate: ${gasEst.estimatedCostUSD ? `$${gasEst.estimatedCostUSD}` : `${gasEst.estimatedCostETH} ETH`} | Net APY after gas: ${netYield !== null ? `${netYield}%` : 'N/A'} | Position viable: ${netYield !== null ? (Number(netYield) > 0 ? 'YES' : 'NO') : 'N/A'}`,
+        `[DECIDE] ${netYield !== null ? (Number(netYield) > 0 ? `HOLD - no rebalance needed` : 'SKIP - gas cost exceeds yield for current position size') : 'HOLD - economics unavailable'}`,
         `[REPORT] Portfolio health nominal. Next evaluation in 86400s.`
       ];
 
@@ -305,6 +348,8 @@ app.post('/api/invest', async (req, res) => {
     req.log.info('invest.request', { asset, amount });
     const prompt = `Assess the risk for supplying ${amount} ${asset} to Aave V3. If it's safe, I EXPLICITLY CONFIRM AND AUTHORIZE this write operation. YOU MUST trigger the 'supply_asset' function call immediately. Output your decision using the [OBSERVE] [ANALYZE] [ECONOMICS] [DECIDE] [REPORT] format.`;
 
+    // Reset history to prevent memory leak and context pollution across requests
+    agent.conversationHistory = [];
     const aiResponse = await agent.chat(prompt);
 
     // Look for function call results in history
@@ -320,15 +365,15 @@ app.post('/api/invest', async (req, res) => {
       req.log.warn('invest.blocked', { asset, amount, supplyResult });
       res.json(supplyResult);
     } else if (supplyResult && supplyResult.success) {
-      req.log.info('invest.executed', { asset, amount, txHash: supplyResult.txHash, chain: supplyResult.chain });
+      req.log.info('invest.executed', { asset, amount, txHash: supplyResult.txHash, chainId: supplyResult.chainId, protocol: supplyResult.protocol });
       res.json({
         success: true,
         ai_response: aiResponse,
         hash: supplyResult.txHash,
         blockExplorer: supplyResult.blockExplorer,
         economics: supplyResult.economics,
-        chain: supplyResult.chain,
-        contractAddress: supplyResult.contractAddress
+        chainId: supplyResult.chainId,
+        protocol: supplyResult.protocol
       });
     } else {
       req.log.warn('invest.refused', { asset, amount });

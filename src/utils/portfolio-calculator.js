@@ -1020,4 +1020,386 @@ export class PortfolioCalculator {
 
     return scenarios;
   }
+
+  /**
+   * Project portfolio value over multiple time periods
+   * 
+   * Requirements: 7.7, 7.8
+   * 
+   * @param {Array} positions - Array of position objects
+   * @param {Array} periods - Array of days to project (default: [30, 90, 365])
+   * @returns {Promise<Object>} Portfolio projections
+   */
+  async projectPortfolioValue(positions, periods = [30, 90, 365]) {
+    if (!this.priceOracle) {
+      throw new Error('Price Oracle not configured. Call setIntegrations() first.');
+    }
+
+    const currentValue = await this.calculatePortfolioValue(positions);
+    const weightedAPY = await this.calculateWeightedAPY(positions);
+
+    const projections = [];
+
+    for (const days of periods) {
+      const projection = await this.calculateProjectedValue(positions, days);
+      projections.push({
+        days,
+        projectedValueUSD: projection.projectedValueUSD,
+        projectedGain: projection.projectedGain,
+        projectedGainPercentage: projection.projectedGainPercentage
+      });
+    }
+
+    return {
+      currentValueUSD: currentValue.totalSuppliedUSD,
+      weightedAPY: weightedAPY.weightedAPY,
+      projections,
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Calculate expected vs actual returns comparison
+   * 
+   * Requirements: 7.8
+   * 
+   * @param {Object} params - Comparison parameters
+   * @param {number} params.initialValueUSD - Initial portfolio value
+   * @param {number} params.currentValueUSD - Current portfolio value
+   * @param {number} params.expectedAPY - Expected APY at start
+   * @param {number} params.daysSinceStart - Days since portfolio start
+   * @returns {Object} Expected vs actual comparison
+   */
+  calculateExpectedVsActual(params) {
+    const {
+      initialValueUSD,
+      currentValueUSD,
+      expectedAPY,
+      daysSinceStart
+    } = params;
+
+    if (!initialValueUSD || !currentValueUSD || !expectedAPY || !daysSinceStart) {
+      throw new Error('All parameters are required');
+    }
+
+    // Calculate actual return
+    const actualGain = currentValueUSD - initialValueUSD;
+    const actualReturnPercentage = (actualGain / initialValueUSD) * 100;
+    const actualAPY = (actualReturnPercentage / daysSinceStart) * 365;
+
+    // Calculate expected value based on expected APY
+    const dailyRate = Math.pow(1 + expectedAPY / 100, 1 / 365) - 1;
+    const expectedValueUSD = initialValueUSD * Math.pow(1 + dailyRate, daysSinceStart);
+    const expectedGain = expectedValueUSD - initialValueUSD;
+    const expectedReturnPercentage = (expectedGain / initialValueUSD) * 100;
+
+    // Calculate variance
+    const variance = actualReturnPercentage - expectedReturnPercentage;
+    const variancePercentage = expectedReturnPercentage > 0 
+      ? (variance / expectedReturnPercentage) * 100 
+      : 0;
+
+    // Determine performance status
+    let status;
+    if (variance > 1.0) {
+      status = 'outperforming';
+    } else if (variance < -1.0) {
+      status = 'underperforming';
+    } else {
+      status = 'on_track';
+    }
+
+    return {
+      initialValueUSD,
+      currentValueUSD,
+      expectedValueUSD,
+      actualGain,
+      expectedGain,
+      actualReturnPercentage,
+      expectedReturnPercentage,
+      actualAPY,
+      expectedAPY,
+      variance,
+      variancePercentage,
+      status,
+      daysSinceStart,
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Generate performance forecast for portfolio
+   * 
+   * Requirements: 7.7
+   * 
+   * @param {Array} positions - Array of position objects
+   * @param {Object} options - Forecast options
+   * @returns {Promise<Object>} Performance forecast
+   */
+  async generatePerformanceForecast(positions, options = {}) {
+    if (!this.priceOracle) {
+      throw new Error('Price Oracle not configured. Call setIntegrations() first.');
+    }
+
+    const {
+      periods = [30, 90, 365],
+      includeScenarios = true,
+      scenarioVariations = [-10, 0, 10] // APY variations in percentage points
+    } = options;
+
+    const currentValue = await this.calculatePortfolioValue(positions);
+    const weightedAPY = await this.calculateWeightedAPY(positions);
+
+    // Base projections
+    const baseProjections = await this.projectPortfolioValue(positions, periods);
+
+    // Scenario analysis (optimistic, base, pessimistic)
+    const scenarios = {};
+    
+    if (includeScenarios) {
+      for (const variation of scenarioVariations) {
+        const scenarioAPY = weightedAPY.weightedAPY + variation;
+        const scenarioName = variation > 0 ? 'optimistic' : variation < 0 ? 'pessimistic' : 'base';
+        
+        const scenarioProjections = [];
+        for (const days of periods) {
+          const dailyRate = Math.pow(1 + scenarioAPY / 100, 1 / 365) - 1;
+          const projectedValueUSD = currentValue.totalSuppliedUSD * Math.pow(1 + dailyRate, days);
+          const projectedGain = projectedValueUSD - currentValue.totalSuppliedUSD;
+          
+          scenarioProjections.push({
+            days,
+            projectedValueUSD,
+            projectedGain,
+            projectedGainPercentage: (projectedGain / currentValue.totalSuppliedUSD) * 100,
+            apy: scenarioAPY
+          });
+        }
+        
+        scenarios[scenarioName] = {
+          apy: scenarioAPY,
+          projections: scenarioProjections
+        };
+      }
+    }
+
+    return {
+      currentValueUSD: currentValue.totalSuppliedUSD,
+      currentAPY: weightedAPY.weightedAPY,
+      baseProjections: baseProjections.projections,
+      scenarios,
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Calculate impermanent loss for liquidity provision
+   * 
+   * Requirements: 7.4
+   * 
+   * @param {Object} params - IL calculation parameters
+   * @param {number} params.initialPriceRatio - Initial price ratio (token1/token0)
+   * @param {number} params.currentPriceRatio - Current price ratio (token1/token0)
+   * @param {number} params.initialValueUSD - Initial total value in USD
+   * @returns {Object} Impermanent loss calculation
+   */
+  calculateImpermanentLoss(params) {
+    const {
+      initialPriceRatio,
+      currentPriceRatio,
+      initialValueUSD
+    } = params;
+
+    if (!initialPriceRatio || !currentPriceRatio || !initialValueUSD) {
+      throw new Error('initialPriceRatio, currentPriceRatio, and initialValueUSD are required');
+    }
+
+    // Calculate price change ratio
+    const priceChangeRatio = currentPriceRatio / initialPriceRatio;
+
+    // Calculate impermanent loss percentage
+    // Formula: IL = 2 * sqrt(price_ratio) / (1 + price_ratio) - 1
+    const ilMultiplier = (2 * Math.sqrt(priceChangeRatio)) / (1 + priceChangeRatio) - 1;
+    const ilPercentage = ilMultiplier * 100;
+
+    // Calculate value if held vs LP
+    const valueIfHeld = initialValueUSD; // Assuming no price change in USD terms for simplicity
+    const valueInLP = initialValueUSD * (1 + ilMultiplier);
+    const absoluteLoss = valueInLP - valueIfHeld;
+
+    return {
+      impermanentLossPercentage: ilPercentage,
+      absoluteLoss,
+      initialValueUSD,
+      valueIfHeld,
+      valueInLP,
+      priceChangeRatio,
+      priceChangePercentage: (priceChangeRatio - 1) * 100,
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Calculate net APY for LP position including fees and IL
+   * 
+   * Requirements: 7.4
+   * 
+   * @param {Object} params - LP APY calculation parameters
+   * @param {number} params.feeAPY - APY from trading fees
+   * @param {number} params.incentiveAPY - APY from token incentives (optional)
+   * @param {number} params.impermanentLossPercentage - Expected IL percentage (optional)
+   * @param {number} params.holdingPeriodDays - Expected holding period in days
+   * @returns {Object} Net LP APY calculation
+   */
+  calculateLPNetAPY(params) {
+    const {
+      feeAPY,
+      incentiveAPY = 0,
+      impermanentLossPercentage = 0,
+      holdingPeriodDays = 365
+    } = params;
+
+    if (!feeAPY) {
+      throw new Error('feeAPY is required');
+    }
+
+    // Calculate total yield APY (fees + incentives)
+    const totalYieldAPY = feeAPY + incentiveAPY;
+
+    // Annualize IL if holding period is less than a year
+    const annualizedIL = impermanentLossPercentage * (365 / holdingPeriodDays);
+
+    // Net APY = Yield APY - Annualized IL
+    const netAPY = totalYieldAPY - Math.abs(annualizedIL);
+
+    // Determine if LP is profitable
+    const isProfitable = netAPY > 0;
+
+    return {
+      netAPY,
+      feeAPY,
+      incentiveAPY,
+      totalYieldAPY,
+      impermanentLossPercentage,
+      annualizedIL,
+      holdingPeriodDays,
+      isProfitable,
+      breakEvenDays: totalYieldAPY > 0 && impermanentLossPercentage < 0 
+        ? Math.abs(impermanentLossPercentage) / (totalYieldAPY / 365)
+        : null,
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Compare LP strategy vs simple holding
+   * 
+   * Requirements: 7.4
+   * 
+   * @param {Object} lpParams - LP position parameters
+   * @param {Object} holdParams - Hold position parameters
+   * @returns {Object} Strategy comparison
+   */
+  compareLPvsHold(lpParams, holdParams) {
+    const {
+      feeAPY,
+      incentiveAPY = 0,
+      impermanentLossPercentage = 0,
+      holdingPeriodDays = 365
+    } = lpParams;
+
+    const {
+      expectedPriceAppreciation = 0 // Expected price appreciation percentage
+    } = holdParams;
+
+    // Calculate LP net return
+    const lpNetAPY = this.calculateLPNetAPY(lpParams);
+
+    // Calculate hold return (just price appreciation)
+    const holdReturn = expectedPriceAppreciation;
+
+    // Calculate difference
+    const difference = lpNetAPY.netAPY - holdReturn;
+
+    // Determine recommendation
+    let recommendation;
+    let reason;
+
+    if (difference > 5) {
+      recommendation = 'lp_strongly_preferred';
+      reason = 'LP yields significantly higher returns than holding';
+    } else if (difference > 1) {
+      recommendation = 'lp_preferred';
+      reason = 'LP yields moderately higher returns than holding';
+    } else if (difference > -1) {
+      recommendation = 'neutral';
+      reason = 'LP and holding have similar expected returns';
+    } else if (difference > -5) {
+      recommendation = 'hold_preferred';
+      reason = 'Holding yields moderately higher returns than LP';
+    } else {
+      recommendation = 'hold_strongly_preferred';
+      reason = 'Holding yields significantly higher returns than LP';
+    }
+
+    return {
+      lpNetAPY: lpNetAPY.netAPY,
+      holdReturn,
+      difference,
+      recommendation,
+      reason,
+      lpBreakdown: lpNetAPY,
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Calculate IL protection effectiveness
+   * 
+   * Requirements: 7.4
+   * 
+   * @param {Object} params - IL protection parameters
+   * @param {number} params.impermanentLossPercentage - Actual IL percentage
+   * @param {number} params.protectionPercentage - Protection coverage (e.g., 100 for full protection)
+   * @param {number} params.vestingPeriodDays - Vesting period for full protection
+   * @param {number} params.daysInPosition - Days already in position
+   * @returns {Object} IL protection analysis
+   */
+  calculateILProtection(params) {
+    const {
+      impermanentLossPercentage,
+      protectionPercentage = 100,
+      vestingPeriodDays = 100,
+      daysInPosition
+    } = params;
+
+    if (!impermanentLossPercentage || !daysInPosition) {
+      throw new Error('impermanentLossPercentage and daysInPosition are required');
+    }
+
+    // Calculate vesting progress
+    const vestingProgress = Math.min(daysInPosition / vestingPeriodDays, 1.0);
+
+    // Calculate effective protection
+    const effectiveProtection = (protectionPercentage / 100) * vestingProgress;
+
+    // Calculate protected IL
+    const absoluteIL = Math.abs(impermanentLossPercentage);
+    const protectedAmount = absoluteIL * effectiveProtection;
+    const netIL = absoluteIL - protectedAmount;
+
+    return {
+      impermanentLossPercentage,
+      absoluteIL,
+      protectionPercentage,
+      vestingProgress: vestingProgress * 100,
+      effectiveProtection: effectiveProtection * 100,
+      protectedAmount,
+      netIL,
+      daysInPosition,
+      vestingPeriodDays,
+      daysUntilFullProtection: Math.max(vestingPeriodDays - daysInPosition, 0),
+      timestamp: Date.now()
+    };
+  }
 }

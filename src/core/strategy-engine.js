@@ -389,10 +389,55 @@ export class StrategyEngine {
       }
     }
 
+    // Calculate estimated gas based on operation types and chain
+    let estimatedGas;
+    
+    // Try to get real gas estimates from DeFi manager if available
+    if (this.integrations?.defi) {
+      try {
+        const gasEstimates = await Promise.all(
+          steps.map(step => 
+            this.integrations.defi.estimateGas(step.action, {
+              protocol: step.protocol,
+              asset: step.asset,
+              amount: step.amount
+            }).catch(() => null)
+          )
+        );
+        
+        const totalGas = gasEstimates.reduce((sum, est) => {
+          return sum + (est ? parseInt(est.gasLimit) : this._estimateStepGas(steps[gasEstimates.indexOf(est)]));
+        }, 0);
+        
+        // Account for batching savings if gas optimizer is available
+        if (this.integrations?.gasOptimizer && steps.length > 1) {
+          const batchSavings = await this.integrations.gasOptimizer.calculateBatchGasSavings(
+            steps.map((s, i) => ({ 
+              type: s.action, 
+              estimatedGas: gasEstimates[i] ? parseInt(gasEstimates[i].gasLimit) : this._estimateStepGas(s) 
+            })),
+            { type: 'batched' }
+          ).then(result => result.gasSavings).catch(() => 0);
+          
+          estimatedGas = totalGas - batchSavings;
+        } else {
+          estimatedGas = totalGas;
+        }
+      } catch (e) {
+        // Fall through to fallback estimation
+        estimatedGas = null;
+      }
+    }
+    
+    if (!estimatedGas) {
+      // Fallback: sum individual step estimates using static values
+      estimatedGas = steps.reduce((sum, step) => sum + this._estimateStepGas(step), 0);
+    }
+
     const plan = {
       steps,
       totalSteps: steps.length,
-      estimatedGas: steps.length * 150000, // Rough estimate
+      estimatedGas,
       fromAllocation,
       toAllocation,
       createdAt: Date.now()
@@ -407,6 +452,25 @@ export class StrategyEngine {
     });
 
     return plan;
+  }
+
+  _estimateStepGas(step) {
+    // Estimate gas based on action type and chain characteristics
+    const baseEstimates = {
+      withdraw: 180000,
+      supply: 220000,
+      approve: 50000,
+      swap: 150000,
+      borrow: 250000,
+      repay: 200000
+    };
+    
+    // L2 chains typically use 60-70% less gas
+    const isL2 = this.integrations?.defi?.chainId && 
+                 [10, 42161, 8453, 137].includes(this.integrations.defi.chainId);
+    const multiplier = isL2 ? 0.65 : 1.0;
+    
+    return Math.floor((baseEstimates[step.action] || 150000) * multiplier);
   }
 
   /**

@@ -112,6 +112,13 @@ export class GasOptimizer {
     this.queuePersistencePath = config.queuePersistencePath || './.gas-optimizer-queue.json';
     this.onTransactionExecuted = config.onTransactionExecuted || null;
     this.nextQueueId = 1;
+    
+    // Gas estimation constants
+    this.BASE_TRANSACTION_GAS = 21000; // Standard ETH transfer base cost
+    this.APPROVAL_GAS_ESTIMATE = 50000; // ERC20 approval
+    this.SWAP_GAS_ESTIMATE = 150000; // DEX swap
+    this.SUPPLY_GAS_ESTIMATE = 220000; // Protocol supply
+    this.WITHDRAW_GAS_ESTIMATE = 180000; // Protocol withdraw
   }
 
   /**
@@ -918,8 +925,8 @@ export class GasOptimizer {
       return sum + (tx.estimatedGas || 0);
     }, 0);
     
-    // Batched transactions typically save 21000 gas per tx (base transaction cost)
-    const batchedGasEstimate = individualGasEstimate - (transactions.length - 1) * 21000;
+    // Batched transactions typically save base transaction cost per tx
+    const batchedGasEstimate = individualGasEstimate - (transactions.length - 1) * this.BASE_TRANSACTION_GAS;
     const gasSavings = individualGasEstimate - batchedGasEstimate;
     const savingsPercentage = individualGasEstimate > 0 
       ? (gasSavings / individualGasEstimate) * 100 
@@ -1510,6 +1517,60 @@ export class GasOptimizer {
     console.log(`   ${shouldExecute ? '✅' : '❌'} ${recommendation}`);
 
     return analysis;
+  }
+
+  /**
+   * Estimate gas for a specific transaction using real blockchain data
+   * @param {Object} transaction - Transaction object with to, data, value, from
+   * @param {number} chainId - Chain ID
+   * @returns {Promise<Object>} Gas estimate with current prices
+   */
+  async estimateTransactionGas(transaction, chainId = null) {
+    const targetChainId = chainId || this.chainId;
+    const provider = this.providers.get(targetChainId);
+    
+    if (!provider) {
+      throw new Error(`No provider configured for chain ${targetChainId}`);
+    }
+
+    try {
+      // Get real gas estimate from blockchain
+      const gasLimit = await provider.estimateGas({
+        to: transaction.to,
+        from: transaction.from,
+        data: transaction.data || '0x',
+        value: transaction.value || 0n
+      });
+
+      // Get current gas prices
+      const gasPrice = await this.getCurrentGasPrice(targetChainId);
+      
+      // Calculate cost
+      let costWei;
+      if (gasPrice.type === 'eip1559') {
+        costWei = gasLimit * gasPrice.maxFeePerGas;
+      } else {
+        costWei = gasLimit * gasPrice.gasPrice;
+      }
+
+      const costETH = parseFloat(ethers.formatEther(costWei));
+
+      return {
+        gasLimit: gasLimit.toString(),
+        gasLimitNumber: Number(gasLimit),
+        gasPrice,
+        estimatedCostWei: costWei.toString(),
+        estimatedCostETH: costETH,
+        chainId: targetChainId,
+        timestamp: Date.now()
+      };
+    } catch (error) {
+      this.log.error('gas.estimate.transaction.failed', { 
+        chainId: targetChainId, 
+        error: { name: error?.name, message: error?.message } 
+      });
+      throw error;
+    }
   }
 
   /**

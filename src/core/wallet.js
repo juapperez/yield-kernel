@@ -2,8 +2,9 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createRequire } from 'module';
-import { createHash, randomBytes } from 'crypto';
+import { createHash } from 'crypto';
 import { createLogger } from '../utils/logger.js';
+import { ethers } from 'ethers';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -22,7 +23,7 @@ export class WalletManager {
   constructor(config = {}) {
     this.log = createLogger({ service: 'yieldkernel-wallet' });
     this.wdkInstalled = Boolean(EvmWallet);
-    this.walletMode = this.wdkInstalled ? 'wdk' : 'mock';
+    this.walletMode = this.wdkInstalled ? 'wdk' : 'ethers';
     this.config = {
       rpcUrl: config.rpcUrl || process.env.RPC_URL || 'https://eth.llamarpc.com',
       chainId: config.chainId || parseInt(process.env.CHAIN_ID || '1'),
@@ -34,9 +35,16 @@ export class WalletManager {
   async initialize() {
     try {
       if (!EvmWallet) {
-        // Mock wallet for demo when WDK not installed
-        this.walletMode = 'mock';
-        return await this.initializeMockWallet();
+        this.walletMode = 'ethers';
+        if (!this.config.mnemonic) {
+          throw new Error('WALLET_MNEMONIC is required when WDK is not available.');
+        }
+        const provider = new ethers.JsonRpcProvider(this.config.rpcUrl, this.config.chainId);
+        this.wallet = ethers.Wallet.fromPhrase(this.config.mnemonic).connect(provider);
+        const mnemonicFingerprint = createHash('sha256').update(this.config.mnemonic).digest('hex').slice(0, 12);
+        const address = await this.wallet.getAddress();
+        this.log.warn('wallet.fallback.ethers', { mnemonicFingerprint, address, chainId: this.config.chainId, rpcUrl: this.config.rpcUrl });
+        return this.wallet;
       }
 
       if (!this.config.mnemonic) {
@@ -79,33 +87,6 @@ export class WalletManager {
       this.log.error('wallet.init.error', { error: { name: error?.name, message: error?.message } });
       throw error;
     }
-  }
-
-  async initializeMockWallet() {
-    this.log.warn('wallet.mock.enabled', { chainId: this.config.chainId, rpcUrl: this.config.rpcUrl });
-
-    // Generate a deterministic address from seed — stable across restarts
-    const seed = process.env.WALLET_MNEMONIC || 'yieldkernel-demo-wallet-seed-2026';
-    const mockAddress = '0x' + createHash('sha256').update(seed).digest('hex').slice(0, 40);
-
-    this.wallet = {
-      getAddress: async () => mockAddress,
-      getBalance: async () => '0.5142',
-      getTokenBalance: async (token) => token === '0xdAC17F958D2ee523a2206206994597C13D831ec7' ? '1000.00' : '0',
-      getMnemonic: () => seed,
-      sendTransaction: async (tx) => {
-        const { randomBytes } = await import('crypto').catch(() => require('crypto'));
-        return { hash: '0x' + randomBytes(32).toString('hex'), wait: async () => ({}) };
-      },
-      sendToken: async () => {
-        const { randomBytes } = await import('crypto').catch(() => require('crypto'));
-        return { hash: '0x' + randomBytes(32).toString('hex'), wait: async () => ({}) };
-      }
-    };
-
-    this.log.info('wallet.mock.ready', { address: mockAddress, chainId: this.config.chainId, rpcUrl: this.config.rpcUrl });
-
-    return this.wallet;
   }
 
   getRuntimeStatus() {

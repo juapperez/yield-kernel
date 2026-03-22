@@ -133,6 +133,6 @@ export class AIProvider {
   }
 
   supportsFunction() {
-    return this.provider === 'openai';
+    return this.provider === 'openai' || this.provider === 'groq';
   }
 }

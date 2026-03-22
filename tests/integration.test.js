@@ -12,8 +12,24 @@ import { WalletManager } from '../src/core/wallet.js';
 import { DeFiManager } from '../src/core/defi.js';
 import { RiskManager } from '../src/core/risk.js';
 import dotenv from 'dotenv';
+import { createRequire } from 'module';
 
 dotenv.config();
+
+const require = createRequire(import.meta.url);
+let wdkAvailable = false;
+try {
+  require('@tetherto/wdk-evm');
+  wdkAvailable = true;
+} catch {
+  wdkAvailable = false;
+}
+
+if (!wdkAvailable && !process.env.WALLET_MNEMONIC) {
+  console.log('\nYieldKernel Integration Test Suite\n' + '─'.repeat(45));
+  console.log('\nSKIPPED: WALLET_MNEMONIC not set and @tetherto/wdk-evm not installed.\n');
+  process.exit(0);
+}
 
 const results = { passed: 0, failed: 0 };
 
