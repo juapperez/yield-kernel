@@ -364,7 +364,24 @@ DO NOT just describe what you would do. EXECUTE the supply_asset function now.`;
 
     // Reset history to prevent memory leak and context pollution across requests
     agent.conversationHistory = [];
-    const aiResponse = await agent.chat(prompt);
+    
+    let aiResponse;
+    try {
+      aiResponse = await agent.chat(prompt);
+    } catch (chatError) {
+      req.log.error('invest.chat_error', { 
+        error: { 
+          name: chatError?.name, 
+          message: chatError?.message,
+          stack: chatError?.stack 
+        } 
+      });
+      return res.status(500).json({ 
+        error: 'AI processing failed', 
+        details: chatError.message,
+        ai_response: 'Error: ' + chatError.message
+      });
+    }
 
     req.log.info('invest.ai_response', { response: aiResponse });
 

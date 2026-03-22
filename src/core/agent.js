@@ -99,8 +99,14 @@ export class DeFiAgent {
         return message.content;
       }
     } catch (error) {
-      this.log.error('chat.error', { error: { name: error?.name, message: error?.message } });
-      return 'Sorry, I encountered an error processing your request.';
+      this.log.error('chat.error', { 
+        error: { 
+          name: error?.name, 
+          message: error?.message,
+          stack: error?.stack 
+        } 
+      });
+      throw error; // Re-throw so server can see the actual error
     }
   }
 

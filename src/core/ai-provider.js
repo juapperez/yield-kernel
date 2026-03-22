@@ -91,15 +91,25 @@ export class AIProvider {
       };
 
       // Add tool calling support for both providers
-      if (functions) {
+      if (functions && functions.length > 0) {
         params.tools = functions.map(f => ({ type: 'function', function: f }));
         params.tool_choice = 'auto';
       }
       
+      console.log(' Calling AI with params:', JSON.stringify({ model: params.model, messageCount: messages.length, toolCount: functions?.length || 0 }));
+      
       const response = await this.client.chat.completions.create(params);
+      
+      console.log(' AI response received:', JSON.stringify({ 
+        hasMessage: !!response.choices[0].message,
+        hasToolCalls: !!response.choices[0].message.tool_calls,
+        toolCallCount: response.choices[0].message.tool_calls?.length || 0
+      }));
+      
       return response.choices[0].message;
     } catch (error) {
       console.error(' AI chat error:', error.message);
+      console.error(' Error details:', error);
       throw error;
     }
   }
