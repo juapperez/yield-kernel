@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { WalletManager } from './wallet.js';
-import { DeFiManager } from './defi.js';
+import { DeFiManagerWDK } from './defi-wdk.js';
 import { RiskManager } from './risk.js';
 import { RiskEngine } from './risk-engine.js';
 import { StrategyEngine, StrategyType } from './strategy-engine.js';
@@ -34,7 +34,7 @@ export class DeFiAgent {
     this.walletManager = new WalletManager();
     await this.walletManager.initialize();
 
-    this.defiManager = new DeFiManager(this.walletManager.wallet);
+    this.defiManager = new DeFiManagerWDK(this.walletManager.wallet);
     await this.defiManager.initialize();
 
     this.riskManager = new RiskManager();
@@ -45,9 +45,9 @@ export class DeFiAgent {
     await this.priceOracle.initialize();
 
     this.riskEngine = new RiskEngine({ priceOracle: this.priceOracle });
-    this.strategyEngine = new StrategyEngine({ protocolRegistry: this.defiManager.registry, priceOracle: this.priceOracle, riskEngine: this.riskEngine });
+    this.strategyEngine = new StrategyEngine({ protocolRegistry: null, priceOracle: this.priceOracle, riskEngine: this.riskEngine });
     this.strategyEngine.setStrategy(StrategyType.BALANCED);
-    this.monitor.setIntegrations({ strategyEngine: this.strategyEngine, protocolRegistry: this.defiManager.registry, riskEngine: this.riskEngine, priceOracle: this.priceOracle });
+    this.monitor.setIntegrations({ strategyEngine: this.strategyEngine, protocolRegistry: null, riskEngine: this.riskEngine, priceOracle: this.priceOracle });
 
     this.log.info('agent.initialize.ready', { walletReady: Boolean(this.walletManager?.wallet) });
   }

@@ -4,17 +4,18 @@ import { dirname, join } from 'path';
 import { createRequire } from 'module';
 import { createHash } from 'crypto';
 import { createLogger } from '../utils/logger.js';
-import { ethers } from 'ethers';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Dynamic import for WDK
 let WalletManagerEvm;
+let WalletAccountEvm;
 try {
   const require = createRequire(import.meta.url);
   const wdk = require('@tetherto/wdk-wallet-evm');
   WalletManagerEvm = wdk.default || wdk.WalletManagerEvm;
+  WalletAccountEvm = wdk.WalletAccountEvm;
 } catch (error) {
   createLogger({ service: 'yieldkernel-wallet' }).warn('wdk.unavailable', { reason: 'module_not_installed' });
 }
@@ -92,21 +93,17 @@ export class WalletManager {
     if (!this.wallet) throw new Error('Wallet not initialized');
 
     try {
+      const account = await this.wallet.getAccount(0);
+      
       if (!tokenAddress) {
-        const address = await this.wallet.getAddress?.();
-        const provider = this.wallet?.provider || new ethers.JsonRpcProvider(this.config.rpcUrl, this.config.chainId);
-        const balance = await provider.getBalance(address);
+        // Get native ETH balance
+        const balance = await account.getNativeBalance();
         return { balance: balance.toString(), symbol: 'ETH' };
       }
-      if (typeof this.wallet.getTokenBalance === 'function') {
-        const balance = await this.wallet.getTokenBalance(tokenAddress);
-        return { balance: String(balance), symbol: 'TOKEN' };
-      }
-      const provider = this.wallet?.provider || new ethers.JsonRpcProvider(this.config.rpcUrl, this.config.chainId);
-      const address = await this.wallet.getAddress?.();
-      const erc20 = new ethers.Contract(tokenAddress, ['function balanceOf(address) view returns (uint256)', 'function symbol() view returns (string)'], provider);
-      const [balance, symbol] = await Promise.all([erc20.balanceOf(address), erc20.symbol().catch(() => 'TOKEN')]);
-      return { balance: balance.toString(), symbol };
+      
+      // Get ERC-20 token balance using WDK
+      const balance = await account.getTokenBalance(tokenAddress);
+      return { balance: balance.toString(), symbol: 'TOKEN' };
     } catch (error) {
       this.log.error('wallet.balance.error', { error: { name: error?.name, message: error?.message } });
       return { balance: '0', symbol: 'UNKNOWN' };
@@ -117,17 +114,15 @@ export class WalletManager {
     if (!this.wallet) throw new Error('Wallet not initialized');
 
     try {
+      const account = await this.wallet.getAccount(0);
       let tx;
+      
       if (!tokenAddress) {
-        tx = await this.wallet.sendTransaction?.({ to, value: amount });
+        // Send native ETH using WDK
+        tx = await account.sendTransaction({ to, value: BigInt(amount) });
       } else {
-        if (typeof this.wallet.sendToken === 'function') {
-          tx = await this.wallet.sendToken(tokenAddress, to, amount);
-        } else {
-          const signer = typeof this.wallet.getSigner === 'function' ? await this.wallet.getSigner() : this.wallet;
-          const erc20 = new ethers.Contract(tokenAddress, ['function transfer(address to, uint256 amount) returns (bool)'], signer);
-          tx = await erc20.transfer(to, amount);
-        }
+        // Send ERC-20 token using WDK
+        tx = await account.transfer(tokenAddress, to, BigInt(amount));
       }
 
       this.log.info('wallet.tx.sent', { hash: tx?.hash, to, tokenAddress: tokenAddress || 'ETH' });

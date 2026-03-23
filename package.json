@@ -28,6 +28,7 @@
     "yield-optimization"
   ],
   "dependencies": {
+    "@tetherto/wdk-protocol-lending-aave-evm": "^1.0.0-beta.3",
     "@tetherto/wdk-wallet-evm": "^1.0.0-beta.10",
     "cors": "^2.8.6",
     "dotenv": "^16.0.0",
