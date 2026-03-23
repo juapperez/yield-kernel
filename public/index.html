@@ -1203,19 +1203,6 @@
                         autonomously re-evaluates yields every 24 hours to ensure institutional-grade stability and
                         minimize unnecessary gas exposure.</p>
 
-                    <h3 style="margin-top: 48px; margin-bottom: 16px;">Judge Mode</h3>
-                    <div style="display:flex; gap:12px; align-items:center;">
-                        <button class="btn-launch" id="btn-judge-run">
-                            Run Judge Mode
-                        </button>
-                        <button class="btn-launch" id="btn-proof-tx">
-                            Generate On-chain Proof
-                        </button>
-                    </div>
-                    <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 12px; line-height: 1.4;">One click
-                        generates a structured decision transcript. Proof uses a real testnet transaction when WDK is
-                        active and funded.</p>
-
                     <h3 style="margin-top: 48px; margin-bottom: 16px;">Live Agent Feed</h3>
                     <div
                         style="background: #050505; border: 1px solid rgba(0,255,102,0.2); border-radius: 8px; padding: 20px; max-height: 280px; overflow-y: auto;">
@@ -1562,69 +1549,6 @@
                     body.innerHTML = `<tr><td colspan="4" style="color: var(--text-dim); font-family: 'JetBrains Mono'; font-size: 0.75rem;">Failed to load portfolio.</td></tr>`;
                 }
             }
-
-            async function runJudgeMode() {
-                document.getElementById('ecosystem').scrollIntoView({ behavior: 'smooth' });
-                clearTerminal();
-                addTerminalLine('BOOT', 'Starting Judge Mode pipeline...');
-                try {
-                    const res = await fetch(`${API_BASE}/api/judge/run`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Bypass-Tunnel-Reminder': 'true'
-                        },
-                        body: JSON.stringify({ execute: true, requireOnchainProof: false, asset: 'USDC', amount: '10' })
-                    });
-                    const data = await res.json();
-                    if (!data.ok) {
-                        addTerminalLine('ACTION', `Judge Mode failed: ${data.error || 'unknown error'}`);
-                        return;
-                    }
-
-                    (data.transcript || []).forEach(step => {
-                        addTerminalLine(step.stage, step.message);
-                    });
-
-                    if (data.execution && data.execution.executed) {
-                        const txHash = data.execution?.proof?.txHash || data.execution?.result?.txHash;
-                        const link = data.execution?.proof?.blockExplorer || data.execution?.result?.blockExplorer;
-                        if (txHash) addTerminalLine('EXEC', `TX: ${txHash}`);
-                        if (link) addTerminalLine('LINK', link);
-                    }
-                } catch (e) {
-                    addTerminalLine('ACTION', `Network Error: ${e.message}`);
-                }
-            }
-
-            async function generateProofTx() {
-                document.getElementById('ecosystem').scrollIntoView({ behavior: 'smooth' });
-                addTerminalLine('BOOT', 'Submitting proof transaction...');
-                try {
-                    const res = await fetch(`${API_BASE}/api/proof/tx`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Bypass-Tunnel-Reminder': 'true'
-                        },
-                        body: JSON.stringify({})
-                    });
-                    const data = await res.json();
-                    if (!data.ok) {
-                        addTerminalLine('ACTION', `Proof unavailable: ${data.reason || data.error || 'not configured'}`);
-                        return;
-                    }
-                    addTerminalLine('SUCCESS', `Proof TX: ${data.txHash}`);
-                    addTerminalLine('LINK', data.blockExplorer);
-                } catch (e) {
-                    addTerminalLine('ACTION', `Network Error: ${e.message}`);
-                }
-            }
-
-            const btnJudgeRun = document.getElementById('btn-judge-run');
-            if (btnJudgeRun) btnJudgeRun.addEventListener('click', (e) => { e.preventDefault(); runJudgeMode(); });
-            const btnProofTx = document.getElementById('btn-proof-tx');
-            if (btnProofTx) btnProofTx.addEventListener('click', (e) => { e.preventDefault(); generateProofTx(); });
 
             // Live Autonomous Monitor — connects to SSE endpoint
             let monitorEventSource = null;
