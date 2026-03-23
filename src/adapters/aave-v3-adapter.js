@@ -26,14 +26,14 @@ const AAVE_V3_ABIS = {
     'event Borrow(address indexed reserve, address user, address indexed onBehalfOf, uint256 amount, uint8 interestRateMode, uint256 borrowRate, uint16 indexed referralCode)',
     'event Repay(address indexed reserve, address indexed user, address indexed repayer, uint256 amount, bool useATokens)'
   ],
-  
+
   PoolDataProvider: [
     'function getUserReserveData(address asset, address user) view returns (uint256 currentATokenBalance, uint256 currentStableDebt, uint256 currentVariableDebt, uint256 principalStableDebt, uint256 scaledVariableDebt, uint256 stableBorrowRate, uint256 liquidityRate, uint40 stableRateLastUpdated, bool usageAsCollateralEnabled)',
     'function getReserveData(address asset) view returns (uint256 unbacked, uint256 accruedToTreasuryScaled, uint256 totalAToken, uint256 totalStableDebt, uint256 totalVariableDebt, uint256 liquidityRate, uint256 variableBorrowRate, uint256 stableBorrowRate, uint256 averageStableBorrowRate, uint256 liquidityIndex, uint256 variableBorrowIndex, uint40 lastUpdateTimestamp)',
     'function getAllReservesTokens() view returns (tuple(string symbol, address tokenAddress)[])',
     'function getReserveConfigurationData(address asset) view returns (uint256 decimals, uint256 ltv, uint256 liquidationThreshold, uint256 liquidationBonus, uint256 reserveFactor, bool usageAsCollateralEnabled, bool borrowingEnabled, bool stableBorrowRateEnabled, bool isActive, bool isFrozen)'
   ],
-  
+
   ERC20: [
     'function approve(address spender, uint256 amount) returns (bool)',
     'function allowance(address owner, address spender) view returns (uint256)',
@@ -110,9 +110,9 @@ export class AaveV3Adapter extends ProtocolAdapter {
   constructor(wallet, config = {}) {
     const chainId = config.chainId || 1;
     const rpcUrl = config.rpcUrl || process.env.RPC_URL || 'https://ethereum.publicnode.com';
-    
+
     super('aave-v3', wallet, { chainId, rpcUrl });
-    
+
     this.provider = null;
     this.poolContract = null;
     this.dataProviderContract = null;
@@ -126,11 +126,11 @@ export class AaveV3Adapter extends ProtocolAdapter {
   async initialize() {
     try {
       console.log(`[Aave V3] Initializing adapter on chain ${this.config.chainId}`);
-      
+
       // Create provider
       this.provider = new ethers.JsonRpcProvider(this.config.rpcUrl);
       console.log(`[Aave V3] Provider created: ${this.config.rpcUrl}`);
-      
+
       // Get contract addresses for this chain
       const addresses = AAVE_V3_ADDRESSES[this.config.chainId];
       if (!addresses) {
@@ -159,7 +159,7 @@ export class AaveV3Adapter extends ProtocolAdapter {
       console.log(`[Aave V3] Initialized successfully`);
       console.log(`   Pool: ${addresses.Pool}`);
       console.log(`   DataProvider: ${addresses.PoolDataProvider}`);
-      
+
       return true;
     } catch (error) {
       console.error(`[Aave V3] Failed to initialize:`, error.message);
@@ -174,16 +174,16 @@ export class AaveV3Adapter extends ProtocolAdapter {
   async getPositions(userAddress) {
     try {
       const positions = [];
-      
+
       // Get all available reserves
-      const reserves = await this._retryCall(() => 
+      const reserves = await this._retryCall(() =>
         this.dataProviderContract.getAllReservesTokens()
       );
 
       // Query user data for each reserve
       for (const reserve of reserves) {
         const { symbol, tokenAddress } = reserve;
-        
+
         try {
           const userData = await this._retryCall(() =>
             this.dataProviderContract.getUserReserveData(tokenAddress, userAddress)
@@ -200,7 +200,7 @@ export class AaveV3Adapter extends ProtocolAdapter {
           // Add supplied position if user has balance
           if (currentATokenBalance > 0n) {
             const supplyAPY = Number(liquidityRate) / 1e25; // Convert from ray (1e27) to percentage
-            
+
             positions.push({
               protocol: this.name,
               asset: symbol,
@@ -246,15 +246,15 @@ export class AaveV3Adapter extends ProtocolAdapter {
   async getAvailableYields() {
     try {
       console.log(`[Aave V3] Fetching USDT yield from chain ${this.config.chainId}`);
-      
-      const timeoutPromise = new Promise((_, reject) => 
+
+      const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('RPC timeout')), 5000)
       );
-      
+
       try {
         // Only fetch USDT reserve data
         const usdtAddress = '0xdAC17F958D2ee523a2206206994597C13D831ec7';
-        
+
         const reserveData = await Promise.race([
           this._retryCall(() => this.dataProviderContract.getReserveData(usdtAddress), 1),
           timeoutPromise
@@ -269,7 +269,7 @@ export class AaveV3Adapter extends ProtocolAdapter {
         const supplyAPY = Number(liquidityRate) / 1e25;
         const borrowAPY = Number(variableBorrowRate) / 1e25;
 
-        const yield = {
+        const yieldData = {
           protocol: this.name,
           asset: 'USDT',
           assetAddress: usdtAddress,
@@ -284,7 +284,7 @@ export class AaveV3Adapter extends ProtocolAdapter {
         };
 
         console.log(`[Aave V3] USDT yield: ${supplyAPY.toFixed(2)}% APY (real on-chain data)`);
-        return [yield];
+        return [yieldData];
       } catch (error) {
         console.error('[Aave V3] Error fetching USDT yield:', error.message);
         throw error;
@@ -303,22 +303,22 @@ export class AaveV3Adapter extends ProtocolAdapter {
     try {
       const assetAddress = this._resolveAssetAddress(asset);
       const userAddress = await this.wallet.getAddress();
-      
+
       console.log(`\n Supplying ${amount} ${asset} to Aave V3...`);
-      
+
       // Step 1: Approve Pool to spend tokens
       console.log('Step 1/2: Approving token spend...');
       const approvalTx = await this._approveToken(assetAddress, amount);
       console.log(` Approval confirmed: ${approvalTx.hash}`);
-      
+
       // Step 2: Supply to pool
       console.log('Step 2/2: Supplying to pool...');
       const poolAddress = this.getContractAddress('pool');
-      
+
       // Get signer from wallet
       const signer = await this._getSigner();
       const poolWithSigner = this.poolContract.connect(signer);
-      
+
       // Execute supply transaction
       const tx = await poolWithSigner.supply(
         assetAddress,
@@ -326,19 +326,19 @@ export class AaveV3Adapter extends ProtocolAdapter {
         userAddress,
         0 // referralCode
       );
-      
+
       console.log(`⏳ Transaction submitted: ${tx.hash}`);
       console.log('   Waiting for confirmation...');
-      
+
       const receipt = await tx.wait();
-      
+
       // Parse events from receipt
       const events = this._parseSupplyEvents(receipt);
-      
+
       console.log(` Supply successful!`);
       console.log(`   Block: ${receipt.blockNumber}`);
       console.log(`   Gas used: ${receipt.gasUsed.toString()}`);
-      
+
       return {
         success: true,
         txHash: receipt.hash,
@@ -362,37 +362,37 @@ export class AaveV3Adapter extends ProtocolAdapter {
     try {
       const assetAddress = this._resolveAssetAddress(asset);
       const userAddress = await this.wallet.getAddress();
-      
+
       console.log(`\n Withdrawing ${amount} ${asset} from Aave V3...`);
-      
+
       // Get signer from wallet
       const signer = await this._getSigner();
       const poolWithSigner = this.poolContract.connect(signer);
-      
+
       // Execute withdraw transaction
       // Use max uint256 to withdraw all if amount is 'max'
-      const withdrawAmount = amount === 'max' 
-        ? ethers.MaxUint256 
+      const withdrawAmount = amount === 'max'
+        ? ethers.MaxUint256
         : amount;
-      
+
       const tx = await poolWithSigner.withdraw(
         assetAddress,
         withdrawAmount,
         userAddress
       );
-      
+
       console.log(`⏳ Transaction submitted: ${tx.hash}`);
       console.log('   Waiting for confirmation...');
-      
+
       const receipt = await tx.wait();
-      
+
       // Parse events from receipt
       const events = this._parseWithdrawEvents(receipt);
-      
+
       console.log(` Withdrawal successful!`);
       console.log(`   Block: ${receipt.blockNumber}`);
       console.log(`   Gas used: ${receipt.gasUsed.toString()}`);
-      
+
       return {
         success: true,
         txHash: receipt.hash,
@@ -416,15 +416,15 @@ export class AaveV3Adapter extends ProtocolAdapter {
     try {
       const assetAddress = this._resolveAssetAddress(asset);
       const userAddress = await this.wallet.getAddress();
-      
+
       console.log(`\n Borrowing ${amount} ${asset} from Aave V3...`);
-      
+
       const signer = await this._getSigner();
       const poolWithSigner = this.poolContract.connect(signer);
-      
+
       // Interest rate mode: 2 = variable rate (most common)
       const interestRateMode = 2;
-      
+
       const tx = await poolWithSigner.borrow(
         assetAddress,
         amount,
@@ -432,15 +432,15 @@ export class AaveV3Adapter extends ProtocolAdapter {
         0, // referralCode
         userAddress
       );
-      
+
       console.log(`⏳ Transaction submitted: ${tx.hash}`);
       const receipt = await tx.wait();
-      
+
       const events = this._parseBorrowEvents(receipt);
-      
+
       console.log(` Borrow successful!`);
       console.log(`   Block: ${receipt.blockNumber}`);
-      
+
       return {
         success: true,
         txHash: receipt.hash,
@@ -464,35 +464,35 @@ export class AaveV3Adapter extends ProtocolAdapter {
     try {
       const assetAddress = this._resolveAssetAddress(asset);
       const userAddress = await this.wallet.getAddress();
-      
+
       console.log(`\n Repaying ${amount} ${asset} to Aave V3...`);
-      
+
       // Approve tokens first
       const approvalTx = await this._approveToken(assetAddress, amount);
       console.log(` Approval confirmed: ${approvalTx.hash}`);
-      
+
       const signer = await this._getSigner();
       const poolWithSigner = this.poolContract.connect(signer);
-      
+
       // Interest rate mode: 2 = variable rate
       const interestRateMode = 2;
       const repayAmount = amount === 'max' ? ethers.MaxUint256 : amount;
-      
+
       const tx = await poolWithSigner.repay(
         assetAddress,
         repayAmount,
         interestRateMode,
         userAddress
       );
-      
+
       console.log(`⏳ Transaction submitted: ${tx.hash}`);
       const receipt = await tx.wait();
-      
+
       const events = this._parseRepayEvents(receipt);
-      
+
       console.log(` Repayment successful!`);
       console.log(`   Block: ${receipt.blockNumber}`);
-      
+
       return {
         success: true,
         txHash: receipt.hash,
@@ -519,10 +519,10 @@ export class AaveV3Adapter extends ProtocolAdapter {
       );
 
       const { healthFactor } = accountData;
-      
+
       // Health factor is in 1e18 format, convert to decimal
       const hf = Number(healthFactor) / 1e18;
-      
+
       return hf;
     } catch (error) {
       console.error('Error fetching health factor:', error.message);
@@ -536,7 +536,7 @@ export class AaveV3Adapter extends ProtocolAdapter {
   async getAPY(asset) {
     try {
       const assetAddress = this._resolveAssetAddress(asset);
-      
+
       const reserveData = await this._retryCall(() =>
         this.dataProviderContract.getReserveData(assetAddress)
       );
@@ -550,10 +550,10 @@ export class AaveV3Adapter extends ProtocolAdapter {
 
       const supplyAPY = Number(liquidityRate) / 1e25;
       const borrowAPY = Number(variableBorrowRate) / 1e25;
-      
+
       // Calculate utilization rate
       const totalLiquidity = totalAToken + totalVariableDebt;
-      const utilizationRate = totalLiquidity > 0n 
+      const utilizationRate = totalLiquidity > 0n
         ? Number(totalVariableDebt * 10000n / totalLiquidity) / 100
         : 0;
 
@@ -576,7 +576,7 @@ export class AaveV3Adapter extends ProtocolAdapter {
   async _approveToken(tokenAddress, amount) {
     const poolAddress = this.getContractAddress('pool');
     const signer = await this._getSigner();
-    
+
     const tokenContract = new ethers.Contract(
       tokenAddress,
       AAVE_V3_ABIS.ERC20,
@@ -586,13 +586,13 @@ export class AaveV3Adapter extends ProtocolAdapter {
     // Check current allowance
     const userAddress = await this.wallet.getAddress();
     const currentAllowance = await tokenContract.allowance(userAddress, poolAddress);
-    
+
     // Only approve if needed
     if (currentAllowance < amount) {
       const tx = await tokenContract.approve(poolAddress, amount);
       return await tx.wait();
     }
-    
+
     return { hash: 'already-approved' };
   }
 
@@ -604,12 +604,12 @@ export class AaveV3Adapter extends ProtocolAdapter {
     if (typeof this.wallet.getSigner === 'function') {
       return await this.wallet.getSigner();
     }
-    
+
     // If wallet is already a signer, return it
     if (this.wallet.signTransaction) {
       return this.wallet;
     }
-    
+
     // Otherwise, create a signer from provider
     // This assumes wallet has a private key or mnemonic
     throw new Error('Wallet does not support signing transactions');
@@ -623,18 +623,18 @@ export class AaveV3Adapter extends ProtocolAdapter {
     if (asset.startsWith('0x') && asset.length === 42) {
       return asset;
     }
-    
+
     // Look up symbol in asset addresses
     const chainAssets = ASSET_ADDRESSES[this.config.chainId];
     if (!chainAssets) {
       throw new Error(`No asset addresses configured for chain ${this.config.chainId}`);
     }
-    
+
     const address = chainAssets[asset.toUpperCase()];
     if (!address) {
       throw new Error(`Unknown asset: ${asset}`);
     }
-    
+
     return address;
   }
 
@@ -647,7 +647,7 @@ export class AaveV3Adapter extends ProtocolAdapter {
         return await fn();
       } catch (error) {
         if (i === retries - 1) throw error;
-        
+
         const delay = this.retryDelay * Math.pow(2, i);
         console.warn(`Retry ${i + 1}/${retries} after ${delay}ms:`, error.message);
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -660,14 +660,14 @@ export class AaveV3Adapter extends ProtocolAdapter {
    */
   _parseSupplyEvents(receipt) {
     const events = [];
-    
+
     for (const log of receipt.logs) {
       try {
         const parsed = this.poolContract.interface.parseLog({
           topics: log.topics,
           data: log.data
         });
-        
+
         if (parsed && parsed.name === 'Supply') {
           events.push({
             name: 'Supply',
@@ -682,7 +682,7 @@ export class AaveV3Adapter extends ProtocolAdapter {
         continue;
       }
     }
-    
+
     return events;
   }
 
@@ -691,14 +691,14 @@ export class AaveV3Adapter extends ProtocolAdapter {
    */
   _parseWithdrawEvents(receipt) {
     const events = [];
-    
+
     for (const log of receipt.logs) {
       try {
         const parsed = this.poolContract.interface.parseLog({
           topics: log.topics,
           data: log.data
         });
-        
+
         if (parsed && parsed.name === 'Withdraw') {
           events.push({
             name: 'Withdraw',
@@ -712,7 +712,7 @@ export class AaveV3Adapter extends ProtocolAdapter {
         continue;
       }
     }
-    
+
     return events;
   }
 
@@ -721,14 +721,14 @@ export class AaveV3Adapter extends ProtocolAdapter {
    */
   _parseBorrowEvents(receipt) {
     const events = [];
-    
+
     for (const log of receipt.logs) {
       try {
         const parsed = this.poolContract.interface.parseLog({
           topics: log.topics,
           data: log.data
         });
-        
+
         if (parsed && parsed.name === 'Borrow') {
           events.push({
             name: 'Borrow',
@@ -744,7 +744,7 @@ export class AaveV3Adapter extends ProtocolAdapter {
         continue;
       }
     }
-    
+
     return events;
   }
 
@@ -753,14 +753,14 @@ export class AaveV3Adapter extends ProtocolAdapter {
    */
   _parseRepayEvents(receipt) {
     const events = [];
-    
+
     for (const log of receipt.logs) {
       try {
         const parsed = this.poolContract.interface.parseLog({
           topics: log.topics,
           data: log.data
         });
-        
+
         if (parsed && parsed.name === 'Repay') {
           events.push({
             name: 'Repay',
@@ -775,7 +775,7 @@ export class AaveV3Adapter extends ProtocolAdapter {
         continue;
       }
     }
-    
+
     return events;
   }
 }

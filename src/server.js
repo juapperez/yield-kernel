@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { ethers } from 'ethers';
 import { DeFiAgent } from './core/agent.js';
 import { onRequest } from 'firebase-functions/v2/https';
 import 'dotenv/config';
@@ -153,9 +152,14 @@ app.get('/api/status', async (req, res) => {
     const address = await agent.walletManager.wallet.getAddress();
     const addressPresent = Boolean(address);
 
-    const provider = new ethers.JsonRpcProvider(wdk.rpcUrl, wdk.chainId);
     const start = Date.now();
-    const blockNumber = await provider.getBlockNumber();
+    const rpcRes = await fetch(wdk.rpcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_blockNumber', params: [], id: 1 })
+    });
+    const rpcJson = await rpcRes.json();
+    const blockNumber = rpcJson?.result ? parseInt(rpcJson.result, 16) : null;
     const latencyMs = Date.now() - start;
 
     const isReady = addressPresent && Number.isFinite(blockNumber);

@@ -1250,7 +1250,8 @@
             <div class="modal-content">
                 <h3 style="text-transform: uppercase; letter-spacing: 0.1em; font-weight: 900;">Connect Wallet
                 </h3>
-                <p style="color: var(--text-dim); margin-top: 16px; font-size: 0.9rem;">Connect your browser wallet to access the dashboard.</p>
+                <p style="color: var(--text-dim); margin-top: 16px; font-size: 0.9rem;">Connect your browser wallet to
+                    access the dashboard.</p>
 
                 <div class="wallet-options">
                     <button class="wallet-btn" id="connect-extension">
@@ -1310,11 +1311,11 @@
                                 id: 1
                             })
                         });
-                        
+
                         if (!response.ok) continue;
-                        
+
                         const data = await response.json();
-                        
+
                         if (data.result) {
                             // Convert hex block number to decimal
                             const blockNumber = parseInt(data.result, 16);
@@ -1384,6 +1385,7 @@
             ];
 
             let isConnected = false;
+            let connectedAddress = null;
 
             btnStartBuilding.addEventListener('click', () => {
                 document.getElementById('ecosystem').scrollIntoView({ behavior: 'smooth' });
@@ -1425,6 +1427,10 @@
                     alert('Please enter a valid amount.');
                     return;
                 }
+                if (!isConnected || !connectedAddress || typeof window.ethereum === 'undefined') {
+                    openModal();
+                    return;
+                }
 
                 // Temporarily show landing to see terminal
                 landingContent.style.display = 'block';
@@ -1437,58 +1443,76 @@
                 await new Promise(r => setTimeout(r, 800));
 
                 try {
-                    const res = await fetch(`${API_BASE}/api/invest`, {
+                    const prepRes = await fetch(`${API_BASE}/api/invest/prepare`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'Bypass-Tunnel-Reminder': 'true'
                         },
-                        body: JSON.stringify({ asset, amount })
+                        body: JSON.stringify({ asset, amount, from: connectedAddress })
                     });
-                    const data = await res.json();
+                    const prep = await prepRes.json();
 
                     addTerminalLine('THOUGHT', `Fetching yield opportunities for ${asset}...`);
                     await new Promise(r => setTimeout(r, 600));
-                    
+
                     addTerminalLine('THOUGHT', `Assessing risk parameters...`);
                     await new Promise(r => setTimeout(r, 600));
 
-                    // Always display AI response first
-                    if (data.ai_response) {
-                        addTerminalLine('THOUGHT', `Executing transaction...`);
-                        await new Promise(r => setTimeout(r, 400));
-                        data.ai_response.split('\n').forEach(line => {
-                            if (line.trim()) addTerminalLine('INFO', line.trim());
-                        });
-                        await new Promise(r => setTimeout(r, 500));
+                    if (!prep.ok) {
+                        addTerminalLine('ACTION', `Transaction Failed: ${prep.error || 'Failed to prepare transaction'}`);
+                        await new Promise(r => setTimeout(r, 3000));
+                        showDashboard();
+                        return;
                     }
 
-                    // Then show transaction result
-                    if (data.hash) {
-                        addTerminalLine('PASS', 'Risk validation complete. Transaction authorized.');
-                        await new Promise(r => setTimeout(r, 600));
-                        addTerminalLine('EXEC', `[DECIDE] Supplying ${amount} ${asset} to Aave V3 on ${data.chain || 'Ethereum Mainnet'}...`);
-                        await new Promise(r => setTimeout(r, 800));
-                        addTerminalLine('SUCCESS', `[REPORT] Transaction submitted: ${data.hash}`);
-                        if (data.economics) {
-                            await new Promise(r => setTimeout(r, 400));
-                            addTerminalLine('INFO', `[ECONOMICS] Supply APY: ${data.economics.supplyAPY} | Projected yield: ${data.economics.expectedYearlyYield}/yr`);
-                            addTerminalLine('INFO', `[ECONOMICS] Gas cost: ${data.economics.gasCostUSD} | Net gain: ${data.economics.netGain}`);
+                    const desiredChainHex = '0x' + Number(prep.chainId).toString(16);
+                    const currentChainHex = await window.ethereum.request({ method: 'eth_chainId' });
+                    if (String(currentChainHex).toLowerCase() !== String(desiredChainHex).toLowerCase()) {
+                        try {
+                            await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: desiredChainHex }] });
+                        } catch (e) {
+                            addTerminalLine('ACTION', `Wrong network. Switch to chain ${prep.chainId} in your wallet.`);
+                            await new Promise(r => setTimeout(r, 3000));
+                            showDashboard();
+                            return;
                         }
-                        if (data.blockExplorer) {
-                            await new Promise(r => setTimeout(r, 300));
-                            addTerminalLine('INFO', `[VERIFY] Etherscan: ${data.blockExplorer}`);
-                        }
-                        await new Promise(r => setTimeout(r, 400));
-                        refreshPortfolio();
-                    } else if (data.error || data.issues) {
-                        addTerminalLine('ACTION', `Transaction Failed: ${data.error || 'Issues found'}`);
-                        if (data.issues) {
-                            data.issues.forEach(issue => addTerminalLine('ACTION', issue.message));
-                        }
-                    } else {
-                        addTerminalLine('SUCCESS', `Operation completed.`);
                     }
+
+                    addTerminalLine('PASS', 'Risk validation complete. Transaction ready for authorization.');
+                    await new Promise(r => setTimeout(r, 600));
+
+                    addTerminalLine('THOUGHT', `Checking token allowance...`);
+                    const allowanceHex = await window.ethereum.request({
+                        method: 'eth_call',
+                        params: [{ to: prep.allowanceCall.to, data: prep.allowanceCall.data }, 'latest']
+                    });
+                    const allowance = BigInt(allowanceHex);
+                    const required = BigInt(prep.amountBaseUnits);
+
+                    if (allowance < required) {
+                        addTerminalLine('EXEC', `[DECIDE] Approving ${asset} for Aave...`);
+                        const approveHash = await window.ethereum.request({
+                            method: 'eth_sendTransaction',
+                            params: [prep.approveTx]
+                        });
+                        addTerminalLine('INFO', `[REPORT] Approval submitted: ${approveHash}`);
+                        await new Promise(r => setTimeout(r, 900));
+                    } else {
+                        addTerminalLine('PASS', `[RISK] Allowance sufficient`);
+                        await new Promise(r => setTimeout(r, 400));
+                    }
+
+                    addTerminalLine('EXEC', `[DECIDE] Supplying ${amount} ${asset} to Aave V3...`);
+                    const supplyHash = await window.ethereum.request({
+                        method: 'eth_sendTransaction',
+                        params: [prep.supplyTx]
+                    });
+
+                    addTerminalLine('SUCCESS', `[REPORT] Transaction submitted: ${supplyHash}`);
+                    addTerminalLine('INFO', `[VERIFY] Etherscan: https://etherscan.io/tx/${supplyHash}`);
+                    await new Promise(r => setTimeout(r, 400));
+                    refreshPortfolio();
                 } catch (e) {
                     addTerminalLine('ACTION', `Network Error: ${e.message}`);
                 }
@@ -1505,6 +1529,16 @@
                 try {
                     const res = await fetch(`${API_BASE}/api/yields`, { headers: { 'Bypass-Tunnel-Reminder': 'true' } });
                     const yields = await res.json();
+                    const assets = Array.from(new Set((Array.isArray(yields) ? yields : []).map(y => String(y.asset || '').toUpperCase()).filter(Boolean)));
+                    assets.sort((a, b) => (a === 'USDT' ? -1 : 0) - (b === 'USDT' ? -1 : 0) || a.localeCompare(b));
+                    if (assets.length) {
+                        const current = String(investAsset.value || '').toUpperCase();
+                        investAsset.innerHTML = assets.map(a => `<option${a === current ? ' selected' : ''}>${a}</option>`).join('');
+                        if (!current || !assets.includes(current)) {
+                            const preferred = assets.includes('USDT') ? 'USDT' : assets[0];
+                            investAsset.value = preferred;
+                        }
+                    }
                     const rows = (Array.isArray(yields) ? yields : [])
                         .sort((a, b) => Number(b.supplyAPY || 0) - Number(a.supplyAPY || 0))
                         .slice(0, 8);
@@ -1624,6 +1658,7 @@
                         addTerminalLine('INFO', 'Requesting window.ethereum access...', true);
                         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                         const account = accounts[0];
+                        connectedAddress = account;
                         const shortAddr = account.substring(0, 6) + '...' + account.substring(account.length - 4);
 
                         addTerminalLine('SUCCESS', `Extension Authorized: ${shortAddr}`);

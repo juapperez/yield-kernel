@@ -75,8 +75,6 @@ export class WalletManager {
         this.walletMode = 'wdk.generated';
         this.log.info('wallet.generate.start', { chainId: this.config.chainId });
 
-        // Use a safe, valid mnemonic as fallback if none provided
-        // because some WDK versions might not handle undefined correctly
         this.wallet = new WalletManagerEvm(safeMnemonic, {
           provider: this.config.rpcUrl,
           chainId: this.config.chainId
@@ -114,7 +112,14 @@ export class WalletManager {
         }
       }
 
-      const address = await this.wallet.getAddress?.() || 'unknown';
+      if (typeof this.wallet.getAddress !== 'function') {
+        this.wallet.getAddress = async () => {
+          const account = await this.wallet.getAccount(0);
+          return await account.getAddress();
+        };
+      }
+
+      const address = await this.wallet.getAddress();
       this.log.info('wallet.ready', { address, chainId: this.config.chainId, rpcUrl: this.config.rpcUrl });
 
       return this.wallet;
