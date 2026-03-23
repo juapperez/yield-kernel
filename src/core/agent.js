@@ -29,27 +29,76 @@ export class DeFiAgent {
   async initialize() {
     this.log.info('agent.initialize.start');
 
-    await this.aiProvider.initialize();
+    try {
+      await this.aiProvider.initialize();
+      this.log.info('agent.initialize.ai.ready');
+    } catch (err) {
+      this.log.error('agent.initialize.ai.failed', { error: { name: err?.name, message: err?.message } });
+      // Continue - AI is optional for some operations
+    }
 
-    this.walletManager = new WalletManager();
-    await this.walletManager.initialize();
+    try {
+      this.walletManager = new WalletManager();
+      await this.walletManager.initialize();
+      this.log.info('agent.initialize.wallet.ready');
+    } catch (err) {
+      this.log.error('agent.initialize.wallet.failed', { error: { name: err?.name, message: err?.message } });
+      throw err;
+    }
 
-    this.defiManager = new DeFiManagerWDK(this.walletManager.wallet);
-    await this.defiManager.initialize();
+    try {
+      this.defiManager = new DeFiManagerWDK(this.walletManager.wallet);
+      await this.defiManager.initialize();
+      this.log.info('agent.initialize.defi.ready');
+    } catch (err) {
+      this.log.error('agent.initialize.defi.failed', { error: { name: err?.name, message: err?.message } });
+      // Continue with limited functionality
+    }
 
-    this.riskManager = new RiskManager();
+    try {
+      this.riskManager = new RiskManager();
+      this.log.info('agent.initialize.risk.ready');
+    } catch (err) {
+      this.log.error('agent.initialize.risk.failed', { error: { name: err?.name, message: err?.message } });
+      // Continue without risk manager
+    }
 
-    this.monitor = new PortfolioMonitor(this.defiManager, this.riskManager);
+    try {
+      this.monitor = new PortfolioMonitor(this.defiManager, this.riskManager);
+      this.log.info('agent.initialize.monitor.ready');
+    } catch (err) {
+      this.log.error('agent.initialize.monitor.failed', { error: { name: err?.name, message: err?.message } });
+      // Continue without monitor
+    }
 
-    this.priceOracle = new PriceOracle({ chainId: this.defiManager.chainId, rpcUrl: this.defiManager.rpcUrl });
-    await this.priceOracle.initialize();
+    try {
+      this.priceOracle = new PriceOracle({ chainId: this.defiManager?.chainId || 1, rpcUrl: this.defiManager?.rpcUrl || 'https://eth-mainnet.g.alchemy.com/v2/demo' });
+      await this.priceOracle.initialize();
+      this.log.info('agent.initialize.oracle.ready');
+    } catch (err) {
+      this.log.error('agent.initialize.oracle.failed', { error: { name: err?.name, message: err?.message } });
+      // Continue without price oracle
+    }
 
-    this.riskEngine = new RiskEngine({ priceOracle: this.priceOracle });
-    this.strategyEngine = new StrategyEngine({ protocolRegistry: null, priceOracle: this.priceOracle, riskEngine: this.riskEngine });
-    this.strategyEngine.setStrategy(StrategyType.BALANCED);
-    this.monitor.setIntegrations({ strategyEngine: this.strategyEngine, protocolRegistry: null, riskEngine: this.riskEngine, priceOracle: this.priceOracle });
+    try {
+      this.riskEngine = new RiskEngine({ priceOracle: this.priceOracle });
+      this.strategyEngine = new StrategyEngine({ protocolRegistry: null, priceOracle: this.priceOracle, riskEngine: this.riskEngine });
+      this.strategyEngine.setStrategy(StrategyType.BALANCED);
+      if (this.monitor) {
+        this.monitor.setIntegrations({ strategyEngine: this.strategyEngine, protocolRegistry: null, riskEngine: this.riskEngine, priceOracle: this.priceOracle });
+      }
+      this.log.info('agent.initialize.strategy.ready');
+    } catch (err) {
+      this.log.error('agent.initialize.strategy.failed', { error: { name: err?.name, message: err?.message } });
+      // Continue without strategy engine
+    }
 
-    this.log.info('agent.initialize.ready', { walletReady: Boolean(this.walletManager?.wallet) });
+    this.log.info('agent.initialize.ready', { 
+      walletReady: Boolean(this.walletManager?.wallet),
+      defiReady: Boolean(this.defiManager),
+      riskReady: Boolean(this.riskManager),
+      monitorReady: Boolean(this.monitor)
+    });
   }
 
   async chat(userMessage) {

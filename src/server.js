@@ -105,7 +105,16 @@ app.get('/api/yields', async (req, res) => {
     const agent = await getAgent();
     const yields = await agent.defiManager.getAvailableYields();
     const enriched = (Array.isArray(yields) ? yields : []).map((y) => {
-      const risk = agent.riskManager.assessYieldOpportunity(y);
+      // Safely assess risk, fallback to null if riskManager not available
+      let risk = null;
+      try {
+        if (agent.riskManager && typeof agent.riskManager.assessYieldOpportunity === 'function') {
+          risk = agent.riskManager.assessYieldOpportunity(y);
+        }
+      } catch (riskErr) {
+        req.log.warn('risk.assessment.failed', { asset: y.asset, error: riskErr.message });
+      }
+      
       return {
         ...y,
         riskScore: risk?.score?.total ?? null,
@@ -115,7 +124,7 @@ app.get('/api/yields', async (req, res) => {
     req.log.info('yields.get', { count: enriched.length });
     res.json(enriched);
   } catch (err) {
-    req.log.error('yields.error', { error: { name: err?.name, message: err?.message } });
+    req.log.error('yields.error', { error: { name: err?.name, message: err?.message, stack: err?.stack } });
     res.status(500).json({ error: err.message });
   }
 });
