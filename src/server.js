@@ -539,26 +539,50 @@ app.post('/api/invest', async (req, res) => {
     // Assess risk
     const risk = agent.riskManager.assessYieldOpportunity(best);
     
-    // Execute the supply transaction directly
-    req.log.info('invest.execute', { asset, amount, protocol: best.protocol });
-    const result = await agent.defiManager.supplyToProtocol(best.protocol, asset, amount);
+    if (risk.recommendation === 'REJECT') {
+      return res.json({
+        ok: false,
+        error: `Risk assessment failed: ${risk.reason}`,
+        ai_response: `I cannot recommend this investment due to risk concerns: ${risk.reason}`
+      });
+    }
     
-    req.log.info('invest.success', { asset, amount, txHash: result.txHash });
+    // Get gas estimate
+    const gasEst = await agent.defiManager.estimateGas('supply', { asset, amount }).catch(() => null);
+    
+    // Execute the supply transaction using WDK
+    req.log.info('invest.execute', { asset, amount, protocol: best.protocol, gasEstimate: gasEst });
+    const result = await agent.defiManager.supplyToAave(asset, amount);
+    
+    req.log.info('invest.success', { asset, amount, hash: result.hash, fee: result.fee.toString() });
     res.json({
       ok: true,
-      ai_response: `Successfully supplied ${amount} ${asset} to ${best.protocol}. Transaction: ${result.txHash}`,
-      result,
-      hash: result.txHash,
-      blockExplorer: result.blockExplorer,
-      economics: result.economics,
-      chain: result.chain
+      ai_response: `Successfully supplied ${amount} ${asset} to Aave V3. Transaction: ${result.hash}`,
+      result: {
+        hash: result.hash,
+        fee: result.fee.toString(),
+        asset,
+        amount,
+        protocol: 'aave-v3',
+        apy: best.supplyAPY,
+        riskScore: risk.score.total
+      },
+      blockExplorer: `https://etherscan.io/tx/${result.hash}`,
+      economics: {
+        asset,
+        amount,
+        apy: best.supplyAPY,
+        gasFeesETH: (Number(result.fee) / 1e18).toFixed(6),
+        gasFeesUSD: ((Number(result.fee) / 1e18) * 3000).toFixed(2),
+        projectedYearlyYield: (Number(amount) * best.supplyAPY / 100).toFixed(2)
+      }
     });
   } catch (err) {
     req.log.error('invest.error', { error: { name: err?.name, message: err?.message, stack: err?.stack } });
     res.status(500).json({ 
       ok: false,
       error: err.message,
-      ai_response: `Error: ${err.message}`,
+      ai_response: `Error executing investment: ${err.message}`,
       details: err.message
     });
   }
