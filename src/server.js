@@ -37,53 +37,65 @@ const log = createLogger({ service: 'yieldkernel-api' });
 app.use(requestLoggingMiddleware(log));
 
 let agentInstance = null;
+let agentInitializationPromise = null;
 let backgroundMonitoringInterval = null;
 
 async function getAgent() {
-  if (!agentInstance) {
+  if (agentInstance) return agentInstance;
+
+  if (agentInitializationPromise) {
+    return agentInitializationPromise;
+  }
+
+  agentInitializationPromise = (async () => {
     log.info('agent.init.start');
     try {
-      agentInstance = new DeFiAgent();
-      await agentInstance.initialize();
+      const agent = new DeFiAgent();
+      await agent.initialize();
+      agentInstance = agent;
       log.info('agent.init.ready');
-      
+
       // Start background monitoring if not already running
       if (!backgroundMonitoringInterval) {
         startBackgroundMonitoring();
       }
+
+      return agentInstance;
     } catch (error) {
       log.error('agent.init.failed', { error: { name: error?.name, message: error?.message, stack: error?.stack } });
+      agentInitializationPromise = null; // Allow retry on next call
       throw error;
     }
-  }
-  return agentInstance;
+  })();
+
+  return agentInitializationPromise;
 }
 
 // Background autonomous monitoring - runs every 24 hours regardless of client connections
 async function startBackgroundMonitoring() {
   log.info('background.monitor.start', { interval: '86400s (24 hours)' });
-  
+
   const runMonitoringCycle = async () => {
     try {
       if (!agentInstance || !agentInstance.monitor) {
         log.warn('background.monitor.skip', { reason: 'agent_not_ready' });
         return;
       }
-      
+
       log.info('background.monitor.cycle.start');
       const snapshot = await agentInstance.monitor.checkPortfolio();
-      
+
       const yields = snapshot?.yields || [];
       const positions = snapshot?.positions || [];
       const rebalance = snapshot?.rebalanceOpportunity || null;
-      
+
       log.info('background.monitor.cycle.complete', {
         positions: positions.length,
         opportunities: yields.length,
         shouldRebalance: rebalance?.shouldRebalance || false,
         apyImprovement: rebalance?.apyImprovement || 0
       });
-      
+
       // If rebalancing is recommended and within risk parameters, log it
       if (rebalance?.shouldRebalance && rebalance?.withinRiskParameters) {
         log.warn('background.monitor.rebalance.opportunity', {
@@ -98,13 +110,13 @@ async function startBackgroundMonitoring() {
       });
     }
   };
-  
+
   // Run immediately on startup
   await runMonitoringCycle();
-  
+
   // Then run every 24 hours
   backgroundMonitoringInterval = setInterval(runMonitoringCycle, 86400000); // 24 hours
-  
+
   log.info('background.monitor.scheduled', { nextRun: new Date(Date.now() + 86400000).toISOString() });
 }
 
@@ -170,7 +182,7 @@ app.get('/api/yields', async (req, res) => {
       } catch (riskErr) {
         req.log.warn('risk.assessment.failed', { asset: y.asset, error: riskErr.message });
       }
-      
+
       return {
         ...y,
         riskScore: risk?.score?.total ?? null,
@@ -271,18 +283,18 @@ app.use(express.static(join(__dirname, '..', 'public')));
 app.post('/api/invest', async (req, res) => {
   try {
     const agent = await getAgent();
-    
+
     const asset = String(req.body?.asset || 'USDT').toUpperCase();
     const amount = String(req.body?.amount || process.env.MAX_POSITION_SIZE_USDT || '1000');
-    
+
     req.log.info('invest.request', { asset, amount });
-    
+
     // Get yields and assess risk first
     const yields = await agent.defiManager.getAvailableYields();
     const best = (Array.isArray(yields) ? yields : [])
       .filter(y => String(y.asset || '').toUpperCase() === asset)
       .sort((a, b) => Number(b.supplyAPY || 0) - Number(a.supplyAPY || 0))[0];
-    
+
     if (!best) {
       return res.json({
         ok: false,
@@ -290,10 +302,10 @@ app.post('/api/invest', async (req, res) => {
         ai_response: `I couldn't find any yield opportunities for ${asset} on available protocols.`
       });
     }
-    
+
     // Assess risk
     const risk = agent.riskManager.assessYieldOpportunity(best);
-    
+
     if (risk.recommendation === 'REJECT') {
       return res.json({
         ok: false,
@@ -301,14 +313,14 @@ app.post('/api/invest', async (req, res) => {
         ai_response: `I cannot recommend this investment due to risk concerns: ${risk.reason}`
       });
     }
-    
+
     // Get gas estimate
     const gasEst = await agent.defiManager.estimateGas('supply', { asset, amount }).catch(() => null);
-    
+
     // Execute the supply transaction using WDK
     req.log.info('invest.execute', { asset, amount, protocol: best.protocol, gasEstimate: gasEst });
     const result = await agent.defiManager.supplyToAave(asset, amount);
-    
+
     req.log.info('invest.success', { asset, amount, hash: result.hash, fee: result.fee.toString() });
     res.json({
       ok: true,
@@ -334,7 +346,7 @@ app.post('/api/invest', async (req, res) => {
     });
   } catch (err) {
     req.log.error('invest.error', { error: { name: err?.name, message: err?.message, stack: err?.stack } });
-    res.status(500).json({ 
+    res.status(500).json({
       ok: false,
       error: err.message,
       ai_response: `Error executing investment: ${err.message}`,
@@ -351,14 +363,14 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   const port = process.env.PORT || 3000;
   app.listen(port, async () => {
     log.info('server.listen', { port: Number(port) });
-    
+
     // Initialize agent and start background monitoring on server startup
     try {
       await getAgent();
       log.info('server.startup.complete', { backgroundMonitoring: 'active' });
     } catch (error) {
-      log.error('server.startup.agent_init_failed', { 
-        error: { name: error?.name, message: error?.message } 
+      log.error('server.startup.agent_init_failed', {
+        error: { name: error?.name, message: error?.message }
       });
     }
   });

@@ -25,24 +25,28 @@ export class DeFiManagerWDK {
     if (this.initialized) return;
     
     try {
+      this.log.info('defi.wdk.init.start');
       if (!this.wallet) throw new Error('Wallet not initialized');
       if (!AaveProtocolEvm) throw new Error('WDK Aave module not available');
 
       // Get the first account from wallet
       this.account = await this.wallet.getAccount(0);
+      if (!this.account) throw new Error('Failed to get account from wallet');
       
       // Initialize Aave protocol with WDK account
       this.aaveProtocol = new AaveProtocolEvm(this.account);
+      if (!this.aaveProtocol) throw new Error('Failed to create AaveProtocolEvm instance');
       
       this.log.info('defi.wdk.initialized', { chainId: this.chainId, rpcUrl: this.rpcUrl });
       this.initialized = true;
     } catch (error) {
-      this.log.error('defi.wdk.init.error', { error: { name: error?.name, message: error?.message } });
+      this.log.error('defi.wdk.init.error', { error: { name: error?.name, message: error?.message, stack: error?.stack } });
       throw error;
     }
   }
 
   async getPortfolio() {
+    await this.initialize();
     // Return empty portfolio if not initialized
     if (!this.aaveProtocol) {
       return {
@@ -74,6 +78,7 @@ export class DeFiManagerWDK {
   }
 
   async getAvailableYields() {
+    await this.initialize();
     // Return mock yields even if not fully initialized for demo purposes
     try {
       // Mock yields for now - in production would query Aave data provider
@@ -127,7 +132,16 @@ export class DeFiManagerWDK {
     }
   }
 
+  async supplyToProtocol(protocol, asset, amount) {
+    const protocolName = String(protocol || '').toLowerCase();
+    if (protocolName !== 'aave-v3' && protocolName !== 'aave') {
+      throw new Error(`Unsupported protocol: ${protocol}`);
+    }
+    return await this.supplyToAave(asset, amount);
+  }
+
   async supplyToAave(asset, amount) {
+    await this.initialize();
     if (!this.aaveProtocol) throw new Error('DeFi manager not initialized');
     
     try {
@@ -157,6 +171,7 @@ export class DeFiManagerWDK {
   }
 
   async withdrawFromAave(asset, amount) {
+    await this.initialize();
     if (!this.aaveProtocol) throw new Error('DeFi manager not initialized');
     
     try {
@@ -186,6 +201,7 @@ export class DeFiManagerWDK {
   }
 
   async estimateGas(operation, params = {}) {
+    await this.initialize();
     if (!this.aaveProtocol) throw new Error('DeFi manager not initialized');
     
     try {

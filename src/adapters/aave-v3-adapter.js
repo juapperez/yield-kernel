@@ -247,9 +247,9 @@ export class AaveV3Adapter extends ProtocolAdapter {
     try {
       console.log(`[Aave V3] Fetching yields from chain ${this.config.chainId}`);
       
-      // Try to get real data with a short timeout
+      // Try to get real data with a longer timeout for reliability
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('RPC timeout')), 1500)
+        setTimeout(() => reject(new Error('RPC timeout')), 5000)
       );
       
       try {

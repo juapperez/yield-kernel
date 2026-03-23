@@ -52,7 +52,7 @@ export class DeFiAgent {
       this.log.info('agent.initialize.defi.ready');
     } catch (err) {
       this.log.error('agent.initialize.defi.failed', { error: { name: err?.name, message: err?.message } });
-      // Continue with limited functionality
+      throw err; // Re-throw critical error
     }
 
     try {

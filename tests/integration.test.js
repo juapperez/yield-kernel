@@ -19,7 +19,7 @@ dotenv.config();
 const require = createRequire(import.meta.url);
 let wdkAvailable = false;
 try {
-  require('@tetherto/wdk-evm');
+  require('@tetherto/wdk-wallet-evm');
   wdkAvailable = true;
 } catch {
   wdkAvailable = false;
