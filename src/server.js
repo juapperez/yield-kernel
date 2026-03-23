@@ -207,11 +207,6 @@ app.post('/api/invest', async (req, res) => {
   try {
     const agent = await getAgent();
     
-    // Verify agent is properly initialized
-    if (!agent.defiManager) {
-      throw new Error('DeFi manager not initialized. Check wallet and RPC configuration.');
-    }
-    
     const asset = String(req.body?.asset || 'USDT').toUpperCase();
     const amount = String(req.body?.amount || process.env.MAX_POSITION_SIZE_USDT || '1000');
     

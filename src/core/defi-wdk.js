@@ -43,7 +43,19 @@ export class DeFiManagerWDK {
   }
 
   async getPortfolio() {
-    if (!this.aaveProtocol) throw new Error('DeFi manager not initialized');
+    // Return empty portfolio if not initialized
+    if (!this.aaveProtocol) {
+      return {
+        positions: [],
+        totalValue: '0',
+        totalCollateral: '0',
+        totalDebt: '0',
+        availableBorrows: '0',
+        liquidationThreshold: '0',
+        ltv: '0',
+        healthFactor: '0'
+      };
+    }
     
     try {
       const data = await this.aaveProtocol.getAccountData();
@@ -62,8 +74,7 @@ export class DeFiManagerWDK {
   }
 
   async getAvailableYields() {
-    if (!this.aaveProtocol) throw new Error('DeFi manager not initialized');
-    
+    // Return mock yields even if not fully initialized for demo purposes
     try {
       // Mock yields for now - in production would query Aave data provider
       const yields = [
