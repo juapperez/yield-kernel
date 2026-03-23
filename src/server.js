@@ -37,6 +37,8 @@ const log = createLogger({ service: 'yieldkernel-api' });
 app.use(requestLoggingMiddleware(log));
 
 let agentInstance = null;
+let backgroundMonitoringInterval = null;
+
 async function getAgent() {
   if (!agentInstance) {
     log.info('agent.init.start');
@@ -44,12 +46,66 @@ async function getAgent() {
       agentInstance = new DeFiAgent();
       await agentInstance.initialize();
       log.info('agent.init.ready');
+      
+      // Start background monitoring if not already running
+      if (!backgroundMonitoringInterval) {
+        startBackgroundMonitoring();
+      }
     } catch (error) {
       log.error('agent.init.failed', { error: { name: error?.name, message: error?.message, stack: error?.stack } });
       throw error;
     }
   }
   return agentInstance;
+}
+
+// Background autonomous monitoring - runs every 24 hours regardless of client connections
+async function startBackgroundMonitoring() {
+  log.info('background.monitor.start', { interval: '86400s (24 hours)' });
+  
+  const runMonitoringCycle = async () => {
+    try {
+      if (!agentInstance || !agentInstance.monitor) {
+        log.warn('background.monitor.skip', { reason: 'agent_not_ready' });
+        return;
+      }
+      
+      log.info('background.monitor.cycle.start');
+      const snapshot = await agentInstance.monitor.checkPortfolio();
+      
+      const yields = snapshot?.yields || [];
+      const positions = snapshot?.positions || [];
+      const rebalance = snapshot?.rebalanceOpportunity || null;
+      
+      log.info('background.monitor.cycle.complete', {
+        positions: positions.length,
+        opportunities: yields.length,
+        shouldRebalance: rebalance?.shouldRebalance || false,
+        apyImprovement: rebalance?.apyImprovement || 0
+      });
+      
+      // If rebalancing is recommended and within risk parameters, log it
+      if (rebalance?.shouldRebalance && rebalance?.withinRiskParameters) {
+        log.warn('background.monitor.rebalance.opportunity', {
+          currentAPY: rebalance.currentAPY,
+          optimalAPY: rebalance.optimalAPY,
+          improvement: rebalance.apyImprovement
+        });
+      }
+    } catch (error) {
+      log.error('background.monitor.cycle.error', {
+        error: { name: error?.name, message: error?.message }
+      });
+    }
+  };
+  
+  // Run immediately on startup
+  await runMonitoringCycle();
+  
+  // Then run every 24 hours
+  backgroundMonitoringInterval = setInterval(runMonitoringCycle, 86400000); // 24 hours
+  
+  log.info('background.monitor.scheduled', { nextRun: new Date(Date.now() + 86400000).toISOString() });
 }
 
 function explorerTxUrl(chainId, txHash) {
@@ -293,7 +349,17 @@ export const api = onRequest({ region: 'us-central1' }, app);
 
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   const port = process.env.PORT || 3000;
-  app.listen(port, () => {
+  app.listen(port, async () => {
     log.info('server.listen', { port: Number(port) });
+    
+    // Initialize agent and start background monitoring on server startup
+    try {
+      await getAgent();
+      log.info('server.startup.complete', { backgroundMonitoring: 'active' });
+    } catch (error) {
+      log.error('server.startup.agent_init_failed', { 
+        error: { name: error?.name, message: error?.message } 
+      });
+    }
   });
 }
