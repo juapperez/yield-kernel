@@ -1328,8 +1328,17 @@ export class GasOptimizer {
       
       savingsETH = parseFloat(ethers.formatEther(gasPrice * BigInt(Math.floor(savings))));
       
-      // Rough ETH price estimate (would need price oracle in production)
-      const ethPriceUSD = 2000; // Placeholder
+      // Get real ETH price from Chainlink if available
+      let ethPriceUSD = 3000; // Fallback
+      try {
+        if (this.priceOracle) {
+          const ethPrice = await this.priceOracle.getPrice('ETH');
+          ethPriceUSD = ethPrice.price;
+        }
+      } catch (e) {
+        // Use fallback
+      }
+      
       savingsUSD = savingsETH * ethPriceUSD;
     }
 

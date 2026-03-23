@@ -334,32 +334,13 @@ export class CompoundV3Adapter extends ProtocolAdapter {
 
         return yields;
       } catch (error) {
-        console.warn('Error fetching Compound V3 yields from RPC:', error.message);
-        // Return mock data on RPC failure
-        return this._getMockYields();
+        console.error('Error fetching Compound V3 yields from RPC:', error.message);
+        throw error;
       }
     } catch (error) {
       console.error('Error fetching Compound V3 yields:', error.message);
-      return this._getMockYields();
+      throw error;
     }
-  }
-
-  _getMockYields() {
-    return [
-      {
-        protocol: 'compound-v3',
-        asset: 'USDC',
-        assetAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-        supplyAPY: 3.28,
-        borrowAPY: 4.95,
-        incentiveAPY: 0.5,
-        totalAPY: 3.78,
-        liquidity: '2000000000000000000000000',
-        utilizationRate: 0.72,
-        risk: 'low',
-        chainId: 1
-      }
-    ];
   }
 
   /**

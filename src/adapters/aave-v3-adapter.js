@@ -263,12 +263,12 @@ export class AaveV3Adapter extends ProtocolAdapter {
           ]);
           console.log(`[Aave V3] Found ${reserves.length} reserves`);
         } catch (error) {
-          console.warn(`[Aave V3] Failed to get reserves:`, error.message);
-          return this._getMockYields();
+          console.error(`[Aave V3] Failed to get reserves:`, error.message);
+          throw new Error('Failed to fetch real yield data from Aave V3');
         }
 
-        // Limit to top 3 reserves to avoid RPC rate limiting
-        const topReserves = reserves.slice(0, 3);
+        // Limit to top 5 reserves to avoid RPC rate limiting
+        const topReserves = reserves.slice(0, 5);
         
         for (const reserve of topReserves) {
           const { symbol, tokenAddress } = reserve;
@@ -307,72 +307,20 @@ export class AaveV3Adapter extends ProtocolAdapter {
           }
         }
 
-        // If we got fewer than 2 yields, supplement with mock data
-        if (yields.length < 2) {
-          console.log('[Aave V3] Supplementing with mock data');
-          const mockYields = this._getMockYields();
-          // Add mock yields that aren't already in the list
-          for (const mock of mockYields) {
-            if (!yields.find(y => y.asset === mock.asset)) {
-              yields.push(mock);
-            }
-          }
+        if (yields.length === 0) {
+          throw new Error('No real yield data fetched from Aave V3');
         }
 
-        console.log(`[Aave V3] Returning ${yields.length} yields`);
+        console.log(`[Aave V3] Returning ${yields.length} real yields from on-chain data`);
         return yields;
       } catch (error) {
-        console.warn('[Aave V3] Error fetching yields, using mock data:', error.message);
-        return this._getMockYields();
+        console.error('[Aave V3] Error fetching yields:', error.message);
+        throw error;
       }
     } catch (error) {
       console.error('[Aave V3] Error in getAvailableYields:', error.message);
-      return this._getMockYields();
+      throw error;
     }
-  }
-
-  _getMockYields() {
-    return [
-      {
-        protocol: 'aave-v3',
-        asset: 'USDT',
-        assetAddress: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-        supplyAPY: 3.45,
-        borrowAPY: 5.2,
-        incentiveAPY: 0,
-        totalAPY: 3.45,
-        liquidity: '1000000000000000000000000',
-        utilizationRate: 0.65,
-        risk: 'low',
-        chainId: 1
-      },
-      {
-        protocol: 'aave-v3',
-        asset: 'USDC',
-        assetAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-        supplyAPY: 3.52,
-        borrowAPY: 5.1,
-        incentiveAPY: 0,
-        totalAPY: 3.52,
-        liquidity: '1500000000000000000000000',
-        utilizationRate: 0.58,
-        risk: 'low',
-        chainId: 1
-      },
-      {
-        protocol: 'aave-v3',
-        asset: 'DAI',
-        assetAddress: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
-        supplyAPY: 3.38,
-        borrowAPY: 5.0,
-        incentiveAPY: 0,
-        totalAPY: 3.38,
-        liquidity: '800000000000000000000000',
-        utilizationRate: 0.62,
-        risk: 'low',
-        chainId: 1
-      }
-    ];
   }
 
   /**

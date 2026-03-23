@@ -271,7 +271,7 @@ export class PortfolioMonitor {
         plan,
         executedAt: Date.now(),
         expectedAPYImprovement: rebalanceOpportunity.apyImprovement,
-        gasCostUSD: 50 // Placeholder
+        gasCostUSD: result.gasCostUSD || 0 // Use actual gas cost from result
       };
 
       // Record decision outcome for learning
