@@ -6,6 +6,14 @@ import { ethers } from 'ethers';
 import { DeFiAgent } from './core/agent.js';
 import { onRequest } from 'firebase-functions/v2/https';
 import 'dotenv/config';
+
+// Validate critical environment variables
+if (!process.env.WALLET_MNEMONIC) {
+  console.warn('  WARNING: WALLET_MNEMONIC not set in environment. A temporary wallet will be generated.');
+}
+if (!process.env.GROQ_API_KEY) {
+  console.error('  CRITICAL: GROQ_API_KEY not set. AI features will fail.');
+}
 import { createLogger, errorLoggingMiddleware, requestLoggingMiddleware } from './utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -357,7 +365,9 @@ app.post('/api/invest', async (req, res) => {
 
 app.use(errorLoggingMiddleware(log));
 
-export const api = onRequest({ region: 'us-central1' }, app);
+export const api = onRequest({
+  region: 'us-central1'
+}, app);
 
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   const port = process.env.PORT || 3000;

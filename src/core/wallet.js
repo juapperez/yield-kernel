@@ -25,10 +25,25 @@ export class WalletManager {
     this.log = createLogger({ service: 'yieldkernel-wallet' });
     this.wdkInstalled = Boolean(WalletManagerEvm);
     this.walletMode = this.wdkInstalled ? 'wdk' : 'unavailable';
+
+    // Defensive loading of mnemonic from various sources
+    let m = (config.mnemonic || process.env.WALLET_MNEMONIC || '').trim();
+
+    // Remove literal quotes if present (common in env files)
+    if ((m.startsWith('"') && m.endsWith('"')) || (m.startsWith("'") && m.endsWith("'"))) {
+      m = m.slice(1, -1).trim();
+    }
+
+    // Filter out common "placeholder" strings from environment loaders
+    const invalidPlaceholders = ['undefined', 'null', 'false', '0', '[REDACTED]', 'YOUR_MNEMONIC_HERE'];
+    if (invalidPlaceholders.includes(m.toLowerCase()) || m === '') {
+      m = null;
+    }
+
     this.config = {
       rpcUrl: config.rpcUrl || process.env.RPC_URL || 'https://eth.llamarpc.com',
       chainId: config.chainId || parseInt(process.env.CHAIN_ID || '1'),
-      mnemonic: config.mnemonic || process.env.WALLET_MNEMONIC,
+      mnemonic: m,
       persistGeneratedMnemonic: Boolean(config.persistGeneratedMnemonic ?? (String(process.env.ALLOW_WRITE_MNEMONIC || '').toLowerCase() === 'true'))
     };
     this.wallet = null;
@@ -40,34 +55,82 @@ export class WalletManager {
         throw new Error('WDK not available');
       }
 
-      if (!this.config.mnemonic) {
+      // Check if the provided mnemonic is actually valid
+      let mnemonicToUse = this.config.mnemonic;
+      if (mnemonicToUse) {
+        const words = mnemonicToUse.trim().split(/\s+/);
+        if (words.length < 12) {
+          this.log.warn('wallet.init.invalid_mnemonic', {
+            reason: 'too_short',
+            wordCount: words.length,
+            message: 'Mnemonic must be 12 or 24 words. Falling back to generation.'
+          });
+          mnemonicToUse = null;
+        }
+      }
+
+      if (!mnemonicToUse) {
         this.walletMode = 'wdk';
         this.log.info('wallet.generate.start', { chainId: this.config.chainId });
+
+        // Pass undefined to WalletManagerEvm to trigger internal generation
         this.wallet = new WalletManagerEvm(undefined, {
           provider: this.config.rpcUrl,
           chainId: this.config.chainId
         });
 
-        const mnemonic = this.wallet.getMnemonic?.() || 'generated';
-        const mnemonicFingerprint = createHash('sha256').update(mnemonic).digest('hex').slice(0, 12);
-        this.log.warn('wallet.generate.mnemonic_created', { mnemonicFingerprint });
+        // Try to retrieve the generated mnemonic to save it if allowed
+        try {
+          const generatedMnemonic = await this.wallet.getMnemonic?.();
 
-        if (this.config.persistGeneratedMnemonic) {
-          const envPath = join(__dirname, '..', '..', '.env');
-          const envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
-          if (!envContent.includes('WALLET_MNEMONIC=')) {
-            fs.appendFileSync(envPath, `\nWALLET_MNEMONIC="${mnemonic}"\n`);
-            this.log.info('wallet.generate.mnemonic_saved', { envPath });
+          if (generatedMnemonic && this.config.persistGeneratedMnemonic) {
+            this.config.mnemonic = generatedMnemonic;
+            const envPath = join(__dirname, '..', '..', '.env');
+            if (fs.existsSync(envPath)) {
+              let envContent = fs.readFileSync(envPath, 'utf8');
+              if (envContent.includes('WALLET_MNEMONIC=')) {
+                envContent = envContent.replace(/WALLET_MNEMONIC=.*/, `WALLET_MNEMONIC="${generatedMnemonic}"`);
+              } else {
+                envContent += `\nWALLET_MNEMONIC="${generatedMnemonic}"\n`;
+              }
+              fs.writeFileSync(envPath, envContent);
+              this.log.info('wallet.generate.mnemonic_saved', { envPath });
+            }
           }
+        } catch (e) {
+          this.log.warn('wallet.generate.save_skipped', { reason: e.message });
         }
       } else {
         this.walletMode = 'wdk';
-        this.wallet = new WalletManagerEvm(this.config.mnemonic, {
-          provider: this.config.rpcUrl,
-          chainId: this.config.chainId
+        const words = mnemonicToUse.split(/\s+/);
+        this.log.info('wallet.init.mnemonic_info', {
+          wordCount: words.length,
+          firstWord: words[0],
+          lastWord: words[words.length - 1],
+          length: mnemonicToUse.length
         });
-        const mnemonicFingerprint = createHash('sha256').update(this.config.mnemonic).digest('hex').slice(0, 12);
-        this.log.info('wallet.load.mnemonic', { mnemonicFingerprint, chainId: this.config.chainId });
+
+        try {
+          this.wallet = new WalletManagerEvm(mnemonicToUse, {
+            provider: this.config.rpcUrl,
+            chainId: this.config.chainId
+          });
+
+          const mnemonicFingerprint = createHash('sha256').update(mnemonicToUse).digest('hex').slice(0, 12);
+          this.log.info('wallet.load.mnemonic', { mnemonicFingerprint, chainId: this.config.chainId });
+        } catch (e) {
+          this.log.warn('wallet.init.provided_mnemonic_failed', {
+            error: e.message,
+            message: 'Provided mnemonic failed validation (likely checksum or wordlist). Falling back to generation.'
+          });
+
+          // Fallback to generation if provided mnemonic fails
+          this.wallet = new WalletManagerEvm(undefined, {
+            provider: this.config.rpcUrl,
+            chainId: this.config.chainId
+          });
+          this.walletMode = 'wdk.generated_fallback';
+        }
       }
 
       const address = await this.wallet.getAddress?.() || 'unknown';
@@ -75,7 +138,7 @@ export class WalletManager {
 
       return this.wallet;
     } catch (error) {
-      this.log.error('wallet.init.error', { error: { name: error?.name, message: error?.message } });
+      this.log.error('wallet.init.error', { error: { name: error?.name, message: error?.message, stack: error?.stack } });
       throw error;
     }
   }
@@ -94,13 +157,13 @@ export class WalletManager {
 
     try {
       const account = await this.wallet.getAccount(0);
-      
+
       if (!tokenAddress) {
         // Get native ETH balance
         const balance = await account.getNativeBalance();
         return { balance: balance.toString(), symbol: 'ETH' };
       }
-      
+
       // Get ERC-20 token balance using WDK
       const balance = await account.getTokenBalance(tokenAddress);
       return { balance: balance.toString(), symbol: 'TOKEN' };
@@ -116,7 +179,7 @@ export class WalletManager {
     try {
       const account = await this.wallet.getAccount(0);
       let tx;
-      
+
       if (!tokenAddress) {
         // Send native ETH using WDK
         tx = await account.sendTransaction({ to, value: BigInt(amount) });
