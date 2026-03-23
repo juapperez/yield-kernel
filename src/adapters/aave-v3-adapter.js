@@ -241,80 +241,52 @@ export class AaveV3Adapter extends ProtocolAdapter {
   }
 
   /**
-   * Get available yield opportunities from Aave V3
+   * Get available yield opportunities from Aave V3 - USDT only
    */
   async getAvailableYields() {
     try {
-      console.log(`[Aave V3] Fetching yields from chain ${this.config.chainId}`);
+      console.log(`[Aave V3] Fetching USDT yield from chain ${this.config.chainId}`);
       
-      // Try to get real data with a longer timeout for reliability
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('RPC timeout')), 5000)
       );
       
       try {
-        const yields = [];
+        // Only fetch USDT reserve data
+        const usdtAddress = '0xdAC17F958D2ee523a2206206994597C13D831ec7';
         
-        let reserves;
-        try {
-          reserves = await Promise.race([
-            this._retryCall(() => this.dataProviderContract.getAllReservesTokens(), 1),
-            timeoutPromise
-          ]);
-          console.log(`[Aave V3] Found ${reserves.length} reserves`);
-        } catch (error) {
-          console.error(`[Aave V3] Failed to get reserves:`, error.message);
-          throw new Error('Failed to fetch real yield data from Aave V3');
-        }
+        const reserveData = await Promise.race([
+          this._retryCall(() => this.dataProviderContract.getReserveData(usdtAddress), 1),
+          timeoutPromise
+        ]);
 
-        // Limit to top 5 reserves to avoid RPC rate limiting
-        const topReserves = reserves.slice(0, 5);
-        
-        for (const reserve of topReserves) {
-          const { symbol, tokenAddress } = reserve;
-          
-          try {
-            const reserveData = await Promise.race([
-              this._retryCall(() => this.dataProviderContract.getReserveData(tokenAddress), 1),
-              timeoutPromise
-            ]);
+        const {
+          totalAToken,
+          liquidityRate,
+          variableBorrowRate
+        } = reserveData;
 
-            const {
-              totalAToken,
-              liquidityRate,
-              variableBorrowRate
-            } = reserveData;
+        const supplyAPY = Number(liquidityRate) / 1e25;
+        const borrowAPY = Number(variableBorrowRate) / 1e25;
 
-            const supplyAPY = Number(liquidityRate) / 1e25;
-            const borrowAPY = Number(variableBorrowRate) / 1e25;
+        const yield = {
+          protocol: this.name,
+          asset: 'USDT',
+          assetAddress: usdtAddress,
+          supplyAPY,
+          borrowAPY,
+          incentiveAPY: 0,
+          totalAPY: supplyAPY,
+          liquidity: totalAToken.toString(),
+          utilizationRate: 0,
+          risk: 'low',
+          chainId: this.config.chainId
+        };
 
-            yields.push({
-              protocol: this.name,
-              asset: symbol,
-              assetAddress: tokenAddress,
-              supplyAPY,
-              borrowAPY,
-              incentiveAPY: 0,
-              totalAPY: supplyAPY,
-              liquidity: totalAToken.toString(),
-              utilizationRate: 0,
-              risk: 'low',
-              chainId: this.config.chainId
-            });
-          } catch (error) {
-            console.warn(`[Aave V3] Could not fetch yield data for ${symbol}:`, error.message);
-            continue;
-          }
-        }
-
-        if (yields.length === 0) {
-          throw new Error('No real yield data fetched from Aave V3');
-        }
-
-        console.log(`[Aave V3] Returning ${yields.length} real yields from on-chain data`);
-        return yields;
+        console.log(`[Aave V3] USDT yield: ${supplyAPY.toFixed(2)}% APY (real on-chain data)`);
+        return [yield];
       } catch (error) {
-        console.error('[Aave V3] Error fetching yields:', error.message);
+        console.error('[Aave V3] Error fetching USDT yield:', error.message);
         throw error;
       }
     } catch (error) {

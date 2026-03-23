@@ -84,41 +84,34 @@ export class DeFiManagerWDK {
     }
 
     try {
-      const assets = ['USDT', 'USDC', 'DAI', 'WETH'];
-      const yields = [];
+      const usdtAddress = this._resolveAssetAddress('USDT');
+      
+      try {
+        const reserve = await this.aaveProtocol._getTokenReserve(usdtAddress);
+        
+        const supplyAPY = Number(reserve.liquidityRate) / 1e25;
+        const borrowAPY = Number(reserve.variableBorrowRate) / 1e25;
+        
+        const yield = {
+          protocol: 'aave-v3',
+          asset: 'USDT',
+          assetAddress: usdtAddress,
+          supplyAPY,
+          borrowAPY,
+          incentiveAPY: 0,
+          totalAPY: supplyAPY,
+          liquidity: reserve.availableLiquidity.toString(),
+          utilizationRate: 0,
+          risk: 'low',
+          chainId: this.chainId
+        };
 
-      for (const symbol of assets) {
-        try {
-          const address = this._resolveAssetAddress(symbol);
-          const reserve = await this.aaveProtocol._getTokenReserve(address);
-          
-          const supplyAPY = Number(reserve.liquidityRate) / 1e25;
-          const borrowAPY = Number(reserve.variableBorrowRate) / 1e25;
-          
-          yields.push({
-            protocol: 'aave-v3',
-            asset: symbol,
-            assetAddress: address,
-            supplyAPY,
-            borrowAPY,
-            incentiveAPY: 0,
-            totalAPY: supplyAPY,
-            liquidity: reserve.availableLiquidity.toString(),
-            utilizationRate: 0,
-            risk: 'low',
-            chainId: this.chainId
-          });
-        } catch (error) {
-          this.log.warn('yields.fetch.partial_error', { asset: symbol, error: error.message });
-        }
+        this.log.info('yields.discovered.real', { count: 1, asset: 'USDT', apy: supplyAPY, source: 'on-chain' });
+        return [yield];
+      } catch (error) {
+        this.log.error('yields.fetch.error', { asset: 'USDT', error: error.message });
+        throw new Error('Failed to fetch USDT yield data from Aave');
       }
-
-      if (yields.length === 0) {
-        throw new Error('Failed to fetch any real yield data from Aave');
-      }
-
-      this.log.info('yields.discovered.real', { count: yields.length, source: 'on-chain' });
-      return yields;
     } catch (error) {
       this.log.error('yields.fetch.error', { error: error.message });
       throw error;
