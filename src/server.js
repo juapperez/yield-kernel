@@ -144,6 +144,63 @@ function explorerTxUrl(chainId, txHash) {
   return `${base}/tx/${txHash}`;
 }
 
+function strip0x(hex) {
+  return String(hex || '').startsWith('0x') ? String(hex).slice(2) : String(hex || '');
+}
+
+function pad32(hexNo0x) {
+  return String(hexNo0x || '').padStart(64, '0');
+}
+
+function encodeAddress(address) {
+  const a = String(address || '');
+  if (!a.startsWith('0x') || a.length !== 42) throw new Error(`Invalid address: ${address}`);
+  return pad32(strip0x(a).toLowerCase());
+}
+
+function encodeUint256(value) {
+  const v = BigInt(value);
+  return pad32(v.toString(16));
+}
+
+function toBaseUnits(amount, decimals) {
+  const amtStr = String(amount ?? '').trim();
+  if (!amtStr) throw new Error('Amount is required');
+  const [integer, fractional = ''] = amtStr.split('.');
+  const truncatedFractional = fractional.slice(0, decimals).padEnd(decimals, '0');
+  const combined = `${integer}${truncatedFractional}`.replace(/^0+/, '') || '0';
+  return BigInt(combined);
+}
+
+function encodeErc20Approve(spender, amount) {
+  const selector = '095ea7b3';
+  return `0x${selector}${encodeAddress(spender)}${encodeUint256(amount)}`;
+}
+
+function encodeErc20Allowance(owner, spender) {
+  const selector = 'dd62ed3e';
+  return `0x${selector}${encodeAddress(owner)}${encodeAddress(spender)}`;
+}
+
+function encodeAaveSupply(asset, amount, onBehalfOf, referralCode = 0) {
+  const selector = '617ba037';
+  const assetEnc = encodeAddress(asset);
+  const amountEnc = encodeUint256(amount);
+  const onBehalfEnc = encodeAddress(onBehalfOf);
+  const referralEnc = pad32(BigInt(referralCode).toString(16));
+  return `0x${selector}${assetEnc}${amountEnc}${onBehalfEnc}${referralEnc}`;
+}
+
+function resolveAavePoolAddress(chainId) {
+  const id = Number(chainId);
+  const pools = {
+    1: '0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2'
+  };
+  const addr = pools[id];
+  if (!addr) throw new Error(`Unsupported chainId for Aave pool: ${chainId}`);
+  return addr;
+}
+
 // API for network status check
 app.get('/api/status', async (req, res) => {
   try {
@@ -218,6 +275,57 @@ app.get('/api/portfolio', async (req, res) => {
   } catch (err) {
     req.log.error('portfolio.error', { error: { name: err?.name, message: err?.message } });
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/invest/prepare', async (req, res) => {
+  try {
+    const agent = await getAgent();
+
+    const asset = String(req.body?.asset || 'USDT').toUpperCase();
+    const amount = String(req.body?.amount || process.env.MAX_POSITION_SIZE_USDT || '1000');
+    const from = String(req.body?.from || '');
+    if (!from) return res.status(400).json({ ok: false, error: 'Missing from address' });
+
+    const yields = await agent.defiManager.getAvailableYields();
+    const best = (Array.isArray(yields) ? yields : [])
+      .filter(y => String(y.asset || '').toUpperCase() === asset)
+      .sort((a, b) => Number(b.supplyAPY || 0) - Number(a.supplyAPY || 0))[0];
+
+    if (!best) return res.json({ ok: false, error: `No yield opportunities found for ${asset}` });
+
+    const risk = agent.riskManager.assessYieldOpportunity(best);
+    if (risk.recommendation === 'REJECT') return res.json({ ok: false, error: `Risk assessment failed: ${risk.reason}`, risk });
+
+    const chainId = Number(process.env.CHAIN_ID || 1);
+    const poolAddress = resolveAavePoolAddress(chainId);
+    const tokenAddress = best.assetAddress;
+    if (!tokenAddress) throw new Error(`Token address not found for ${asset}`);
+
+    const decimals = asset === 'USDT' || asset === 'USDC' ? 6 : 18;
+    const amountBaseUnits = toBaseUnits(amount, decimals);
+
+    const approveData = encodeErc20Approve(poolAddress, amountBaseUnits);
+    const allowanceData = encodeErc20Allowance(from, poolAddress);
+    const supplyData = encodeAaveSupply(tokenAddress, amountBaseUnits, from, 0);
+
+    res.json({
+      ok: true,
+      chainId,
+      asset,
+      amount,
+      amountBaseUnits: amountBaseUnits.toString(),
+      tokenAddress,
+      poolAddress,
+      bestOpportunity: best,
+      risk,
+      approveTx: { from, to: tokenAddress, data: approveData, value: '0x0' },
+      allowanceCall: { to: tokenAddress, data: allowanceData },
+      supplyTx: { from, to: poolAddress, data: supplyData, value: '0x0' }
+    });
+  } catch (err) {
+    req.log.error('invest.prepare.error', { error: { name: err?.name, message: err?.message, stack: err?.stack } });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 

@@ -92,7 +92,7 @@ export class DeFiManagerWDK {
         const supplyAPY = Number(reserve.liquidityRate) / 1e25;
         const borrowAPY = Number(reserve.variableBorrowRate) / 1e25;
         
-        const yield = {
+        const yieldData = {
           protocol: 'aave-v3',
           asset: 'USDT',
           assetAddress: usdtAddress,
@@ -107,7 +107,7 @@ export class DeFiManagerWDK {
         };
 
         this.log.info('yields.discovered.real', { count: 1, asset: 'USDT', apy: supplyAPY, source: 'on-chain' });
-        return [yield];
+        return [yieldData];
       } catch (error) {
         this.log.error('yields.fetch.error', { asset: 'USDT', error: error.message });
         throw new Error('Failed to fetch USDT yield data from Aave');
