@@ -197,9 +197,9 @@ app.get('/api/monitor/stream', async (req, res) => {
     }
   };
 
-  // Send immediately then every 30s
+  // Send immediately then every 24 hours (86400 seconds)
   await sendEvent();
-  const interval = setInterval(sendEvent, 30000);
+  const interval = setInterval(sendEvent, 86400000); // 24 hours in milliseconds
 
   req.on('close', () => {
     clearInterval(interval);
