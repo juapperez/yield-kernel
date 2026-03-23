@@ -23,7 +23,7 @@ export class DeFiManagerWDK {
 
   async initialize() {
     if (this.initialized) return;
-    
+
     try {
       this.log.info('defi.wdk.init.start');
       if (!this.wallet) throw new Error('Wallet not initialized');
@@ -32,11 +32,11 @@ export class DeFiManagerWDK {
       // Get the first account from wallet
       this.account = await this.wallet.getAccount(0);
       if (!this.account) throw new Error('Failed to get account from wallet');
-      
+
       // Initialize Aave protocol with WDK account
       this.aaveProtocol = new AaveProtocolEvm(this.account);
       if (!this.aaveProtocol) throw new Error('Failed to create AaveProtocolEvm instance');
-      
+
       this.log.info('defi.wdk.initialized', { chainId: this.chainId, rpcUrl: this.rpcUrl });
       this.initialized = true;
     } catch (error) {
@@ -60,7 +60,7 @@ export class DeFiManagerWDK {
         healthFactor: '0'
       };
     }
-    
+
     try {
       const data = await this.aaveProtocol.getAccountData();
       return {
@@ -143,23 +143,26 @@ export class DeFiManagerWDK {
   async supplyToAave(asset, amount) {
     await this.initialize();
     if (!this.aaveProtocol) throw new Error('DeFi manager not initialized');
-    
+
     try {
       const assetAddress = this._resolveAssetAddress(asset);
-      const amountBigInt = BigInt(amount);
+      const decimals = this._getAssetDecimals(asset);
+      const amountBigInt = this._toBaseUnits(amount, decimals);
+
+      this.log.info('supply.prepare', { asset, amount, amountBigInt: amountBigInt.toString() });
 
       // Get quote first
-      const quote = await this.aaveProtocol.quoteSupply({ 
-        token: assetAddress, 
-        amount: amountBigInt 
+      const quote = await this.aaveProtocol.quoteSupply({
+        token: assetAddress,
+        amount: amountBigInt
       });
 
       this.log.info('supply.quote', { asset, amount, fee: quote.fee.toString() });
 
       // Execute supply
-      const result = await this.aaveProtocol.supply({ 
-        token: assetAddress, 
-        amount: amountBigInt 
+      const result = await this.aaveProtocol.supply({
+        token: assetAddress,
+        amount: amountBigInt
       });
 
       this.log.info('supply.executed', { asset, amount, hash: result.hash, fee: result.fee.toString() });
@@ -173,23 +176,24 @@ export class DeFiManagerWDK {
   async withdrawFromAave(asset, amount) {
     await this.initialize();
     if (!this.aaveProtocol) throw new Error('DeFi manager not initialized');
-    
+
     try {
       const assetAddress = this._resolveAssetAddress(asset);
-      const amountBigInt = BigInt(amount);
+      const decimals = this._getAssetDecimals(asset);
+      const amountBigInt = this._toBaseUnits(amount, decimals);
 
       // Get quote first
-      const quote = await this.aaveProtocol.quoteWithdraw({ 
-        token: assetAddress, 
-        amount: amountBigInt 
+      const quote = await this.aaveProtocol.quoteWithdraw({
+        token: assetAddress,
+        amount: amountBigInt
       });
 
       this.log.info('withdraw.quote', { asset, amount, fee: quote.fee.toString() });
 
       // Execute withdraw
-      const result = await this.aaveProtocol.withdraw({ 
-        token: assetAddress, 
-        amount: amountBigInt 
+      const result = await this.aaveProtocol.withdraw({
+        token: assetAddress,
+        amount: amountBigInt
       });
 
       this.log.info('withdraw.executed', { asset, amount, hash: result.hash, fee: result.fee.toString() });
@@ -203,43 +207,52 @@ export class DeFiManagerWDK {
   async estimateGas(operation, params = {}) {
     await this.initialize();
     if (!this.aaveProtocol) throw new Error('DeFi manager not initialized');
-    
+
     try {
       const asset = params.asset || 'USDT';
-      const amount = BigInt(params.amount || '1000000000'); // 1000 USDT (6 decimals)
+      const decimals = this._getAssetDecimals(asset);
+      const amount = this._toBaseUnits(params.amount || '1000', decimals);
 
       let quote;
       switch (operation) {
         case 'supply':
-          quote = await this.aaveProtocol.quoteSupply({ 
-            token: this._resolveAssetAddress(asset), 
-            amount 
+          quote = await this.aaveProtocol.quoteSupply({
+            token: this._resolveAssetAddress(asset),
+            amount
           });
           break;
         case 'withdraw':
-          quote = await this.aaveProtocol.quoteWithdraw({ 
-            token: this._resolveAssetAddress(asset), 
-            amount 
+          quote = await this.aaveProtocol.quoteWithdraw({
+            token: this._resolveAssetAddress(asset),
+            amount
           });
           break;
         case 'borrow':
-          quote = await this.aaveProtocol.quoteBorrow({ 
-            token: this._resolveAssetAddress(asset), 
-            amount 
+          quote = await this.aaveProtocol.quoteBorrow({
+            token: this._resolveAssetAddress(asset),
+            amount
           });
           break;
         case 'repay':
-          quote = await this.aaveProtocol.quoteRepay({ 
-            token: this._resolveAssetAddress(asset), 
-            amount 
+          quote = await this.aaveProtocol.quoteRepay({
+            token: this._resolveAssetAddress(asset),
+            amount
           });
           break;
         default:
           throw new Error(`Unsupported operation: ${operation}`);
       }
 
-      // Get current fee rates
-      const feeRates = await this.wallet.getFeeRates();
+      // Get current fee rates with fallback
+      let feeRates;
+      try {
+        feeRates = await this.wallet.getFeeRates();
+      } catch (e) {
+        this.log.warn('gas.fee_rates.failed', { error: e.message });
+        feeRates = { normal: 50000000000n, fast: 100000000000n }; // 50/100 gwei fallback
+      }
+
+      const ethPrice = 3000; // Assume $3000/ETH fallback
 
       return {
         operation,
@@ -249,7 +262,7 @@ export class DeFiManagerWDK {
         maxFeePerGasWei: feeRates.normal.toString(),
         maxPriorityFeePerGasWei: '0',
         estimatedCostETH: (Number(quote.fee) / 1e18).toFixed(6),
-        estimatedCostUSD: ((Number(quote.fee) / 1e18) * 3000).toFixed(2) // Assume $3000/ETH
+        estimatedCostUSD: ((Number(quote.fee) / 1e18) * ethPrice).toFixed(2)
       };
     } catch (error) {
       this.log.error('gas.estimate.error', { operation, error: { name: error?.name, message: error?.message } });
@@ -258,6 +271,8 @@ export class DeFiManagerWDK {
   }
 
   _resolveAssetAddress(asset) {
+    if (!asset) throw new Error('Asset symbol or address is required');
+
     const addresses = {
       'USDT': '0xdAC17F958D2ee523a2206206994597C13D831ec7',
       'USDC': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
@@ -275,5 +290,39 @@ export class DeFiManagerWDK {
     }
 
     return address;
+  }
+
+  _getAssetDecimals(asset) {
+    const decimalsMap = {
+      'USDT': 6,
+      'USDC': 6,
+      'DAI': 18,
+      'WETH': 18,
+      'ETH': 18
+    };
+
+    if (asset.startsWith('0x')) {
+      // For addresses, we'd ideally query the contract, 
+      // but for now return 18 as a safe default for most tokens
+      return 18;
+    }
+
+    return decimalsMap[asset.toUpperCase()] || 18;
+  }
+
+  _toBaseUnits(amount, decimals) {
+    if (!amount) return 0n;
+
+    // Handle string or number
+    const amtStr = String(amount);
+
+    // Split into integer and fractional parts
+    const [integer, fractional = ''] = amtStr.split('.');
+
+    // Truncate fractional part to decimals
+    const truncatedFractional = fractional.slice(0, decimals).padEnd(decimals, '0');
+
+    // Combine and convert to BigInt
+    return BigInt(integer + truncatedFractional);
   }
 }
