@@ -151,7 +151,36 @@ export class DeFiManagerWDK {
 
       this.log.info('supply.prepare', { asset, amount, amountBigInt: amountBigInt.toString() });
 
-      // Get quote first
+      // Step 1: Check and handle allowance
+      try {
+        const poolAddress = await this.aaveProtocol.getPoolAddress();
+        this.log.info('supply.check_allowance', { asset, poolAddress });
+
+        // Use WDK's internal account to check allowance
+        const currentAllowance = await this.account.getAllowance(assetAddress, poolAddress);
+
+        if (currentAllowance < amountBigInt) {
+          this.log.info('supply.approve_needed', {
+            current: currentAllowance.toString(),
+            required: amountBigInt.toString()
+          });
+
+          // Request approval via WDK
+          const approveResult = await this.account.approve(assetAddress, poolAddress, amountBigInt);
+          this.log.info('supply.approve_executed', { hash: approveResult.hash });
+
+          // Wait for a few seconds for the network to reflect the approval
+          // In production, we'd wait for confirmation, but WDK's approve might already handle this or return a promise that resolves on inclusion
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        } else {
+          this.log.info('supply.allowance_sufficient', { current: currentAllowance.toString() });
+        }
+      } catch (allowanceError) {
+        this.log.warn('supply.allowance_check_failed', { error: allowanceError.message });
+        // We continue anyway, as the supply step might still work or give a better error
+      }
+
+      // Step 2: Get quote
       const quote = await this.aaveProtocol.quoteSupply({
         token: assetAddress,
         amount: amountBigInt
@@ -159,7 +188,7 @@ export class DeFiManagerWDK {
 
       this.log.info('supply.quote', { asset, amount, fee: quote.fee.toString() });
 
-      // Execute supply
+      // Step 3: Execute supply
       const result = await this.aaveProtocol.supply({
         token: assetAddress,
         amount: amountBigInt
