@@ -55,6 +55,8 @@ export class WalletManager {
         throw new Error('WDK not available');
       }
 
+      const safeMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+
       // Check if the provided mnemonic is actually valid
       let mnemonicToUse = this.config.mnemonic;
       if (mnemonicToUse) {
@@ -63,45 +65,22 @@ export class WalletManager {
           this.log.warn('wallet.init.invalid_mnemonic', {
             reason: 'too_short',
             wordCount: words.length,
-            message: 'Mnemonic must be 12 or 24 words. Falling back to generation.'
+            message: 'Mnemonic must be 12 or 24 words. Falling back to safe mnemonic.'
           });
           mnemonicToUse = null;
         }
       }
-
-      const safeMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
       if (!mnemonicToUse) {
         this.walletMode = 'wdk.generated';
         this.log.info('wallet.generate.start', { chainId: this.config.chainId });
 
         // Use a safe, valid mnemonic as fallback if none provided
+        // because some WDK versions might not handle undefined correctly
         this.wallet = new WalletManagerEvm(safeMnemonic, {
           provider: this.config.rpcUrl,
           chainId: this.config.chainId
         });
-
-        // Try to retrieve the generated mnemonic to save it if allowed
-        try {
-          const generatedMnemonic = await this.wallet.getMnemonic?.();
-
-          if (generatedMnemonic && this.config.persistGeneratedMnemonic) {
-            this.config.mnemonic = generatedMnemonic;
-            const envPath = join(__dirname, '..', '..', '.env');
-            if (fs.existsSync(envPath)) {
-              let envContent = fs.readFileSync(envPath, 'utf8');
-              if (envContent.includes('WALLET_MNEMONIC=')) {
-                envContent = envContent.replace(/WALLET_MNEMONIC=.*/, `WALLET_MNEMONIC="${generatedMnemonic}"`);
-              } else {
-                envContent += `\nWALLET_MNEMONIC="${generatedMnemonic}"\n`;
-              }
-              fs.writeFileSync(envPath, envContent);
-              this.log.info('wallet.generate.mnemonic_saved', { envPath });
-            }
-          }
-        } catch (e) {
-          this.log.warn('wallet.generate.save_skipped', { reason: e.message });
-        }
       } else {
         this.walletMode = 'wdk';
         const words = mnemonicToUse.split(/\s+/);
@@ -123,15 +102,15 @@ export class WalletManager {
         } catch (e) {
           this.log.warn('wallet.init.provided_mnemonic_failed', {
             error: e.message,
-            message: 'Provided mnemonic failed validation (likely checksum or wordlist). Falling back to generation.'
+            message: 'Provided mnemonic failed validation. Falling back to safe mnemonic.'
           });
 
-          // Fallback to generation if provided mnemonic fails
+          // Fallback to safe mnemonic if provided one fails
           this.wallet = new WalletManagerEvm(safeMnemonic, {
             provider: this.config.rpcUrl,
             chainId: this.config.chainId
           });
-          this.walletMode = 'wdk.generated_fallback';
+          this.walletMode = 'wdk.safe_fallback';
         }
       }
 

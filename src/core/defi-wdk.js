@@ -79,56 +79,49 @@ export class DeFiManagerWDK {
 
   async getAvailableYields() {
     await this.initialize();
-    // Return mock yields even if not fully initialized for demo purposes
-    try {
-      // Mock yields for now - in production would query Aave data provider
-      const yields = [
-        {
-          protocol: 'aave-v3',
-          asset: 'USDT',
-          assetAddress: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-          supplyAPY: 3.45,
-          borrowAPY: 5.2,
-          incentiveAPY: 0,
-          totalAPY: 3.45,
-          liquidity: '1000000000000000000000000',
-          utilizationRate: 0.65,
-          risk: 'low',
-          chainId: this.chainId
-        },
-        {
-          protocol: 'aave-v3',
-          asset: 'USDC',
-          assetAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-          supplyAPY: 3.52,
-          borrowAPY: 5.1,
-          incentiveAPY: 0,
-          totalAPY: 3.52,
-          liquidity: '1500000000000000000000000',
-          utilizationRate: 0.58,
-          risk: 'low',
-          chainId: this.chainId
-        },
-        {
-          protocol: 'aave-v3',
-          asset: 'DAI',
-          assetAddress: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
-          supplyAPY: 3.38,
-          borrowAPY: 5.0,
-          incentiveAPY: 0,
-          totalAPY: 3.38,
-          liquidity: '800000000000000000000000',
-          utilizationRate: 0.62,
-          risk: 'low',
-          chainId: this.chainId
-        }
-      ];
+    if (!this.aaveProtocol) {
+      throw new Error('Aave protocol not initialized - cannot fetch yields');
+    }
 
-      this.log.info('yields.discovered', { count: yields.length });
+    try {
+      const assets = ['USDT', 'USDC', 'DAI', 'WETH'];
+      const yields = [];
+
+      for (const symbol of assets) {
+        try {
+          const address = this._resolveAssetAddress(symbol);
+          const reserve = await this.aaveProtocol._getTokenReserve(address);
+          
+          const supplyAPY = Number(reserve.liquidityRate) / 1e25;
+          const borrowAPY = Number(reserve.variableBorrowRate) / 1e25;
+          
+          yields.push({
+            protocol: 'aave-v3',
+            asset: symbol,
+            assetAddress: address,
+            supplyAPY,
+            borrowAPY,
+            incentiveAPY: 0,
+            totalAPY: supplyAPY,
+            liquidity: reserve.availableLiquidity.toString(),
+            utilizationRate: 0,
+            risk: 'low',
+            chainId: this.chainId
+          });
+        } catch (error) {
+          this.log.warn('yields.fetch.partial_error', { asset: symbol, error: error.message });
+        }
+      }
+
+      if (yields.length === 0) {
+        throw new Error('Failed to fetch any real yield data from Aave');
+      }
+
+      this.log.info('yields.discovered.real', { count: yields.length, source: 'on-chain' });
       return yields;
     } catch (error) {
-      this.log.error('yields.fetch.error', { error: { name: error?.name, message: error?.message } });
-      return [];
+      this.log.error('yields.fetch.error', { error: error.message });
+      throw error;
     }
   }
 
