@@ -7,6 +7,24 @@ On-chain Proof TX (testnet): `POST /api/proof/tx`
 Autonomy Stream (SSE): `GET /api/monitor/stream`
 
 
+## Deployment & Environment Setup
+
+YieldKernel supports two deployment paths:
+
+### Option A: Free Tier (Recommended for Demo)
+- **Frontend**: Firebase Hosting (Free Tier)
+- **Backend**: Render.com (Free Tier - No Credit Card Needed)
+
+1. Deploy the frontend using `./deploy.sh` and choose option **2**.
+2. Deploy the backend by connecting this repo to **Render.com**. It will automatically use the included `render.yaml`.
+3. Add your `GROQ_API_KEY` and `WALLET_MNEMONIC` in the Render dashboard.
+
+### Option B: Standard (Firebase Only)
+- **Requires**: Firebase Blaze (Pay-as-you-go) Plan
+
+1. Deploy everything using `./deploy.sh` and choose option **1**.
+2. Configure your environment variables in the Firebase Console.
+
 ---
 
 ## Technical Architecture

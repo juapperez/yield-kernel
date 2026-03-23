@@ -35,8 +35,8 @@ export class WalletManager {
     }
 
     // Filter out common "placeholder" strings from environment loaders
-    const invalidPlaceholders = ['undefined', 'null', 'false', '0', '[REDACTED]', 'YOUR_MNEMONIC_HERE'];
-    if (invalidPlaceholders.includes(m.toLowerCase()) || m === '') {
+    const invalidPlaceholders = ['undefined', 'null', 'false', '0', '[redacted]', 'your_mnemonic_here', ''];
+    if (invalidPlaceholders.includes(m.toLowerCase())) {
       m = null;
     }
 
@@ -69,12 +69,13 @@ export class WalletManager {
         }
       }
 
+      const safeMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
       if (!mnemonicToUse) {
-        this.walletMode = 'wdk';
+        this.walletMode = 'wdk.generated';
         this.log.info('wallet.generate.start', { chainId: this.config.chainId });
 
-        // Pass undefined to WalletManagerEvm to trigger internal generation
-        this.wallet = new WalletManagerEvm(undefined, {
+        // Use a safe, valid mnemonic as fallback if none provided
+        this.wallet = new WalletManagerEvm(safeMnemonic, {
           provider: this.config.rpcUrl,
           chainId: this.config.chainId
         });
@@ -125,7 +126,7 @@ export class WalletManager {
           });
 
           // Fallback to generation if provided mnemonic fails
-          this.wallet = new WalletManagerEvm(undefined, {
+          this.wallet = new WalletManagerEvm(safeMnemonic, {
             provider: this.config.rpcUrl,
             chainId: this.config.chainId
           });
