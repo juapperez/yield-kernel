@@ -43,7 +43,7 @@ async function demonstrateMultiProtocol() {
   try {
     // Setup
     const provider = new ethers.JsonRpcProvider(
-      process.env.RPC_URL || 'https://eth.llamarpc.com'
+      process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo'
     );
     const privateKey = process.env.PRIVATE_KEY || ethers.Wallet.createRandom().privateKey;
     const wallet = new MockWallet(privateKey, provider);
@@ -60,7 +60,7 @@ async function demonstrateMultiProtocol() {
     console.log('2⃣  Setting up Aave V3...');
     const aaveAdapter = new AaveV3Adapter(wallet, {
       chainId: 1,
-      rpcUrl: process.env.RPC_URL || 'https://eth.llamarpc.com'
+      rpcUrl: process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo'
     });
     await aaveAdapter.initialize();
 
@@ -79,7 +79,7 @@ async function demonstrateMultiProtocol() {
     console.log('3⃣  Setting up Compound V3...');
     const compoundAdapter = new CompoundV3Adapter(wallet, {
       chainId: 1,
-      rpcUrl: process.env.RPC_URL || 'https://eth.llamarpc.com'
+      rpcUrl: process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo'
     });
     await compoundAdapter.initialize();
 
@@ -98,7 +98,7 @@ async function demonstrateMultiProtocol() {
     console.log('4⃣  Setting up Spark Protocol...');
     const sparkAdapter = new SparkAdapter(wallet, {
       chainId: 1,
-      rpcUrl: process.env.RPC_URL || 'https://eth.llamarpc.com'
+      rpcUrl: process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo'
     });
     await sparkAdapter.initialize();
 

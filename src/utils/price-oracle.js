@@ -161,7 +161,7 @@ const ASSET_TO_UNISWAP_POOL = {
 export class PriceOracle {
   constructor(config = {}) {
     this.chainId = config.chainId || 1;
-    this.rpcUrl = config.rpcUrl || process.env.RPC_URL || 'https://eth.llamarpc.com';
+    this.rpcUrl = config.rpcUrl || process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo';
     this.provider = null;
     
     // Price cache with TTL

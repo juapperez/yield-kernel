@@ -224,7 +224,7 @@ async function demo() {
   // Create and register Spark adapter
   const sparkAdapter = new SparkAdapter(mockWallet, {
     chainId: 1,
-    rpcUrl: process.env.RPC_URL || 'https://eth.llamarpc.com'
+    rpcUrl: process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo'
   });
   await sparkAdapter.initialize();
   

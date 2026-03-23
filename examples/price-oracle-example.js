@@ -17,7 +17,7 @@ async function main() {
   console.log('1⃣  Initializing PriceOracle...');
   const oracle = new PriceOracle({
     chainId: 1, // Ethereum mainnet
-    rpcUrl: process.env.RPC_URL || 'https://eth.llamarpc.com',
+    rpcUrl: process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo',
     cacheTTL: 60000, // 60 seconds
     maxPriceAge: 3600, // 1 hour
     anomalyThreshold: 0.10 // 10%

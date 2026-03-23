@@ -208,7 +208,7 @@ GROQ_API_KEY=<your_groq_key>
 AI_PROVIDER=groq
 MAX_POSITION_SIZE_USDT=1000
 MIN_APY_THRESHOLD=3.0
-RPC_URL=https://eth.llamarpc.com
+RPC_URL=https://eth-mainnet.g.alchemy.com/v2/demo
 CHAIN_ID=1
 ```
 
