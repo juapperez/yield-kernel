@@ -236,6 +236,16 @@ app.get('/api/status', async (req, res) => {
   }
 });
 
+app.get('/api/version', (req, res) => {
+  res.json({
+    ok: true,
+    service: 'yieldkernel-api',
+    node: process.version,
+    deployedAt: new Date().toISOString(),
+    commit: process.env.RENDER_GIT_COMMIT || process.env.GITHUB_SHA || process.env.VERCEL_GIT_COMMIT_SHA || null
+  });
+});
+
 // API to get current yields
 app.get('/api/yields', async (req, res) => {
   try {
@@ -401,6 +411,17 @@ app.use(express.static(join(__dirname, '..', 'public')));
 
 // API to execute investment via AI chat
 app.post('/api/invest', async (req, res) => {
+  return res.status(410).json({
+    ok: false,
+    error: 'This endpoint is deprecated. Use wallet-signed flow.',
+    ai_response: 'This deployment requires the user wallet to sign transactions. Use POST /api/invest/prepare then send approve+supply via MetaMask.',
+    details: {
+      replacement: '/api/invest/prepare',
+      requiredClientMethods: ['eth_call', 'eth_sendTransaction'],
+      note: 'Server-side signing is disabled in production.'
+    }
+  });
+
   try {
     const agent = await getAgent();
 
