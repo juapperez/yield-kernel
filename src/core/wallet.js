@@ -70,6 +70,7 @@ export class WalletManager {
       }
 
       const safeMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+
       if (!mnemonicToUse) {
         this.walletMode = 'wdk.generated';
         this.log.info('wallet.generate.start', { chainId: this.config.chainId });
