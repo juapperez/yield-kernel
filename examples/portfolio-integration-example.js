@@ -23,7 +23,7 @@ async function fullPortfolioWorkflow() {
   console.log('\n Step 1: Initialize Price Oracle');
   const priceOracle = new PriceOracle({
     chainId: 1,
-    rpcUrl: process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo'
+    rpcUrl: process.env.RPC_URL || 'https://ethereum.publicnode.com'
   });
   
   await priceOracle.initialize();
@@ -154,7 +154,7 @@ async function monitorLeveragedPortfolio() {
   // Initialize components
   const priceOracle = new PriceOracle({
     chainId: 1,
-    rpcUrl: process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo'
+    rpcUrl: process.env.RPC_URL || 'https://ethereum.publicnode.com'
   });
   
   await priceOracle.initialize();
@@ -224,7 +224,7 @@ async function compareStrategies() {
   // Initialize components
   const priceOracle = new PriceOracle({
     chainId: 1,
-    rpcUrl: process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo'
+    rpcUrl: process.env.RPC_URL || 'https://ethereum.publicnode.com'
   });
   
   await priceOracle.initialize();

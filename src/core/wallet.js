@@ -41,7 +41,7 @@ export class WalletManager {
     }
 
     this.config = {
-      rpcUrl: config.rpcUrl || process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo',
+      rpcUrl: config.rpcUrl || process.env.RPC_URL || 'https://ethereum.publicnode.com',
       chainId: config.chainId || parseInt(process.env.CHAIN_ID || '1'),
       mnemonic: m,
       persistGeneratedMnemonic: Boolean(config.persistGeneratedMnemonic ?? (String(process.env.ALLOW_WRITE_MNEMONIC || '').toLowerCase() === 'true'))

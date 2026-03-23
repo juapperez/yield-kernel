@@ -20,7 +20,7 @@ async function main() {
   // Initialize Price Oracle
   const oracle = new PriceOracle({
     chainId: 1, // Ethereum mainnet
-    rpcUrl: process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo',
+    rpcUrl: process.env.RPC_URL || 'https://ethereum.publicnode.com',
     cacheTTL: 60000, // 60 seconds
     maxPriceAge: 3600 // 1 hour
   });
@@ -57,7 +57,7 @@ async function main() {
   // Create oracle with very strict freshness requirement to trigger fallback
   const strictOracle = new PriceOracle({
     chainId: 1,
-    rpcUrl: process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo',
+    rpcUrl: process.env.RPC_URL || 'https://ethereum.publicnode.com',
     maxPriceAge: 1, // Only 1 second (will trigger fallback)
     cacheTTL: 0 // Disable cache
   });

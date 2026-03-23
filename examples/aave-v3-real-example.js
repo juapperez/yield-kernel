@@ -16,7 +16,7 @@ async function main() {
   console.log(' Aave V3 Real Integration Example\n');
 
   // Setup provider and wallet
-  const rpcUrl = process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo';
+  const rpcUrl = process.env.RPC_URL || 'https://ethereum.publicnode.com';
   const provider = new ethers.JsonRpcProvider(rpcUrl);
   
   // For read-only operations, we can use a random wallet

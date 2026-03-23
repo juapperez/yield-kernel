@@ -57,7 +57,7 @@ const PRIORITY_LEVELS = {
 const CHAIN_CONFIGS = {
   1: {
     name: 'Ethereum',
-    rpcUrl: process.env.ETH_RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo',
+    rpcUrl: process.env.ETH_RPC_URL || 'https://ethereum.publicnode.com',
     supportsEIP1559: true
   },
   42161: {

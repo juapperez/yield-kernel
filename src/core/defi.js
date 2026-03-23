@@ -10,7 +10,7 @@ export class DeFiManager {
     this.wallet = wallet;
     this.log = createLogger({ service: 'yieldkernel-defi' });
     this.chainId = Number(config.chainId || process.env.CHAIN_ID || 1);
-    this.rpcUrl = String(config.rpcUrl || process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo');
+    this.rpcUrl = String(config.rpcUrl || process.env.RPC_URL || 'https://ethereum.publicnode.com');
 
     this.provider = new ethers.JsonRpcProvider(this.rpcUrl, this.chainId);
     this.registry = new ProtocolRegistry();

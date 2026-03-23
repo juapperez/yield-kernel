@@ -32,7 +32,7 @@ async function demonstrateParallelYieldDiscovery() {
   
   const aaveAdapter = new AaveV3Adapter(mockWallet, {
     chainId: 1,
-    rpcUrl: process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo'
+    rpcUrl: process.env.RPC_URL || 'https://ethereum.publicnode.com'
   });
   await aaveAdapter.initialize();
   registry.registerProtocol('aave-v3', aaveAdapter, {
@@ -43,7 +43,7 @@ async function demonstrateParallelYieldDiscovery() {
   
   const compoundAdapter = new CompoundV3Adapter(mockWallet, {
     chainId: 1,
-    rpcUrl: process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo'
+    rpcUrl: process.env.RPC_URL || 'https://ethereum.publicnode.com'
   });
   await compoundAdapter.initialize();
   registry.registerProtocol('compound-v3', compoundAdapter, {
@@ -54,7 +54,7 @@ async function demonstrateParallelYieldDiscovery() {
   
   const sparkAdapter = new SparkAdapter(mockWallet, {
     chainId: 1,
-    rpcUrl: process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo'
+    rpcUrl: process.env.RPC_URL || 'https://ethereum.publicnode.com'
   });
   await sparkAdapter.initialize();
   registry.registerProtocol('spark', sparkAdapter, {

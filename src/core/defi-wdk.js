@@ -15,7 +15,7 @@ export class DeFiManagerWDK {
     this.wallet = wallet;
     this.log = createLogger({ service: 'yieldkernel-defi-wdk' });
     this.chainId = Number(config.chainId || process.env.CHAIN_ID || 1);
-    this.rpcUrl = String(config.rpcUrl || process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo');
+    this.rpcUrl = String(config.rpcUrl || process.env.RPC_URL || 'https://ethereum.publicnode.com');
     this.initialized = false;
     this.aaveProtocol = null;
     this.account = null;

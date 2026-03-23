@@ -18,7 +18,7 @@ async function examplePortfolioValue() {
   // Initialize Price Oracle
   const priceOracle = new PriceOracle({
     chainId: 1,
-    rpcUrl: process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo'
+    rpcUrl: process.env.RPC_URL || 'https://ethereum.publicnode.com'
   });
   
   await priceOracle.initialize();
@@ -65,7 +65,7 @@ async function exampleWeightedAPY() {
   // Initialize Price Oracle
   const priceOracle = new PriceOracle({
     chainId: 1,
-    rpcUrl: process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo'
+    rpcUrl: process.env.RPC_URL || 'https://ethereum.publicnode.com'
   });
   
   await priceOracle.initialize();
@@ -108,7 +108,7 @@ async function exampleHealthFactor() {
   // Initialize Price Oracle
   const priceOracle = new PriceOracle({
     chainId: 1,
-    rpcUrl: process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo'
+    rpcUrl: process.env.RPC_URL || 'https://ethereum.publicnode.com'
   });
   
   await priceOracle.initialize();
@@ -165,7 +165,7 @@ async function exampleAllocation() {
   // Initialize Price Oracle
   const priceOracle = new PriceOracle({
     chainId: 1,
-    rpcUrl: process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo'
+    rpcUrl: process.env.RPC_URL || 'https://ethereum.publicnode.com'
   });
   
   await priceOracle.initialize();
@@ -208,7 +208,7 @@ async function exampleProjectedValue() {
   // Initialize Price Oracle
   const priceOracle = new PriceOracle({
     chainId: 1,
-    rpcUrl: process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo'
+    rpcUrl: process.env.RPC_URL || 'https://ethereum.publicnode.com'
   });
   
   await priceOracle.initialize();
@@ -248,7 +248,7 @@ async function examplePerformanceComparison() {
   // Initialize Price Oracle
   const priceOracle = new PriceOracle({
     chainId: 1,
-    rpcUrl: process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo'
+    rpcUrl: process.env.RPC_URL || 'https://ethereum.publicnode.com'
   });
   
   await priceOracle.initialize();

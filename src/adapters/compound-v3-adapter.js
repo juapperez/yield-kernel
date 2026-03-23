@@ -115,7 +115,7 @@ const ASSET_ADDRESSES = {
 export class CompoundV3Adapter extends ProtocolAdapter {
   constructor(wallet, config = {}) {
     const chainId = config.chainId || 1;
-    const rpcUrl = config.rpcUrl || process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo';
+    const rpcUrl = config.rpcUrl || process.env.RPC_URL || 'https://ethereum.publicnode.com';
     
     super('compound-v3', wallet, { chainId, rpcUrl });
     

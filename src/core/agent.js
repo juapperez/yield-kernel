@@ -72,7 +72,7 @@ export class DeFiAgent {
     }
 
     try {
-      this.priceOracle = new PriceOracle({ chainId: this.defiManager?.chainId || 1, rpcUrl: this.defiManager?.rpcUrl || 'https://eth-mainnet.g.alchemy.com/v2/demo' });
+      this.priceOracle = new PriceOracle({ chainId: this.defiManager?.chainId || 1, rpcUrl: this.defiManager?.rpcUrl || 'https://ethereum.publicnode.com' });
       await this.priceOracle.initialize();
       this.log.info('agent.initialize.oracle.ready');
     } catch (err) {
