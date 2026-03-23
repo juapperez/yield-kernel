@@ -274,7 +274,18 @@ export class DeFiManager {
         }
       }
 
-      return await this.provider.estimateGas({ from: userAddress, to, data });
+      try {
+        return await this.provider.estimateGas({ from: userAddress, to, data });
+      } catch (e) {
+        const msg = String(e?.shortMessage || e?.reason || e?.message || '');
+        if (operation === 'supply' && msg.toLowerCase().includes('exceeds allowance')) {
+          const approveIface = new ethers.Interface(['function approve(address spender,uint256 amount)']);
+          const approveData = approveIface.encodeFunctionData('approve', [to, ethers.MaxUint256]);
+          const approveGas = await this.provider.estimateGas({ from: userAddress, to: assetAddress, data: approveData });
+          return approveGas + 250000n;
+        }
+        throw e;
+      }
     }
 
     // Handle approve operations
